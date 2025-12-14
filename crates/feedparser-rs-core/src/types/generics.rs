@@ -98,7 +98,7 @@ impl<V, D> DetailedField<V, D> {
         self.detail.take()
     }
 
-    /// Convert into a tuple of (value, Option<detail>)
+    /// Convert into a tuple of (value, `Option<detail>`)
     #[inline]
     #[must_use]
     pub fn into_parts(self) -> (V, Option<D>) {
