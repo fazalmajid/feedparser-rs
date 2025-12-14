@@ -47,7 +47,7 @@ jobs:
         run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo +stable clippy --all-targets --all-features -- -D warnings
 
       - name: Check documentation
         run: cargo doc --no-deps --all-features
@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [18, 20, 22]
+        node: [20, 22]
 
     steps:
       - uses: actions/checkout@v4
@@ -162,7 +162,7 @@ jobs:
 
   # MSRV check
   msrv:
-    name: Check MSRV (1.86.0)
+    name: Check MSRV (1.88.0)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
