@@ -36,6 +36,7 @@ pub struct ParseContext<'a> {
 
 impl<'a> ParseContext<'a> {
     /// Create a new parse context from raw data
+    #[allow(dead_code)]
     pub fn new(data: &'a [u8], limits: ParserLimits) -> Result<Self> {
         limits
             .check_feed_size(data.len())
@@ -54,6 +55,7 @@ impl<'a> ParseContext<'a> {
 
     /// Check and increment depth, returning error if limit exceeded
     #[inline]
+    #[allow(dead_code)]
     pub fn check_depth(&mut self) -> Result<()> {
         self.depth += 1;
         if self.depth > self.limits.max_nesting_depth {
@@ -67,18 +69,20 @@ impl<'a> ParseContext<'a> {
 
     /// Decrement depth safely
     #[inline]
-    pub fn decrement_depth(&mut self) {
+    #[allow(dead_code)]
+    pub const fn decrement_depth(&mut self) {
         self.depth = self.depth.saturating_sub(1);
     }
 
     /// Clear the buffer
     #[inline]
+    #[allow(dead_code)]
     pub fn clear_buf(&mut self) {
         self.buf.clear();
     }
 }
 
-/// Initialize a ParsedFeed with common setup for any format
+/// Initialize a `ParsedFeed` with common setup for any format
 #[inline]
 pub fn init_feed(version: FeedVersion, max_entries: usize) -> ParsedFeed {
     let mut feed = ParsedFeed::with_capacity(max_entries);
@@ -89,15 +93,14 @@ pub fn init_feed(version: FeedVersion, max_entries: usize) -> ParsedFeed {
 
 /// Check nesting depth and return error if exceeded
 ///
-/// This is a standalone helper for parsers that don't use ParseContext.
-/// Future use: Will be used when ParseContext is adopted project-wide
+/// This is a standalone helper for parsers that don't use `ParseContext`.
+/// Future use: Will be used when `ParseContext` is adopted project-wide
 #[inline]
 #[allow(dead_code)]
 pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
     if depth > max_depth {
         return Err(FeedError::InvalidFormat(format!(
-            "XML nesting depth {} exceeds maximum {}",
-            depth, max_depth
+            "XML nesting depth {depth} exceeds maximum {max_depth}"
         )));
     }
     Ok(())
@@ -109,10 +112,10 @@ pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
 /// is valid UTF-8, falling back to lossy conversion otherwise.
 #[inline]
 pub fn bytes_to_string(value: &[u8]) -> String {
-    match std::str::from_utf8(value) {
-        Ok(s) => s.to_string(),
-        Err(_) => String::from_utf8_lossy(value).into_owned(),
-    }
+    std::str::from_utf8(value).map_or_else(
+        |_| String::from_utf8_lossy(value).into_owned(),
+        std::string::ToString::to_string,
+    )
 }
 
 /// Read text content from current XML element (handles text and CDATA)
@@ -160,7 +163,7 @@ pub fn skip_element(
     reader: &mut Reader<&[u8]>,
     buf: &mut Vec<u8>,
     limits: &ParserLimits,
-    current_depth: &mut usize,
+    current_depth: usize,
 ) -> Result<()> {
     let mut local_depth: usize = 1;
 
@@ -168,7 +171,7 @@ pub fn skip_element(
         match reader.read_event_into(buf) {
             Ok(Event::Start(_)) => {
                 local_depth += 1;
-                if *current_depth + local_depth > limits.max_nesting_depth {
+                if current_depth + local_depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
                         "XML nesting depth exceeds maximum of {}",
                         limits.max_nesting_depth
@@ -278,7 +281,7 @@ mod tests {
         reader.config_mut().trim_text(true);
         let mut buf = Vec::new();
         let limits = ParserLimits::default();
-        let mut depth = 1;
+        let depth = 1;
 
         // Skip to after the start tag
         loop {
@@ -291,7 +294,7 @@ mod tests {
         }
         buf.clear();
 
-        let result = skip_element(&mut reader, &mut buf, &limits, &mut depth);
+        let result = skip_element(&mut reader, &mut buf, &limits, depth);
         assert!(result.is_ok());
     }
 }

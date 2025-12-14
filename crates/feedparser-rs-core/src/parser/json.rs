@@ -14,6 +14,7 @@ use crate::{
 use serde_json::Value;
 
 /// Parse JSON Feed with default limits
+#[allow(dead_code)]
 pub fn parse_json_feed(data: &[u8]) -> Result<ParsedFeed> {
     parse_json_feed_with_limits(data, ParserLimits::default())
 }
@@ -80,7 +81,9 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
         feed.title = Some(truncated);
     }
 
-    if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str()) {
+    if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str())
+        && url.len() <= limits.max_text_length
+    {
         feed.link = Some(url.to_string());
     }
 
@@ -97,11 +100,15 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
         feed.subtitle = Some(truncated);
     }
 
-    if let Some(icon) = json.get("icon").and_then(|v| v.as_str()) {
+    if let Some(icon) = json.get("icon").and_then(|v| v.as_str())
+        && icon.len() <= limits.max_text_length
+    {
         feed.icon = Some(icon.to_string());
     }
 
-    if let Some(favicon) = json.get("favicon").and_then(|v| v.as_str()) {
+    if let Some(favicon) = json.get("favicon").and_then(|v| v.as_str())
+        && favicon.len() <= limits.max_text_length
+    {
         feed.image = Some(Image {
             url: favicon.to_string(),
             title: None,
@@ -120,14 +127,16 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
         limits,
     );
 
-    if let Some(language) = json.get("language").and_then(|v| v.as_str()) {
+    if let Some(language) = json.get("language").and_then(|v| v.as_str())
+        && language.len() <= limits.max_text_length
+    {
         feed.language = Some(language.to_string());
     }
 
-    if let Some(expired) = json.get("expired").and_then(Value::as_bool) {
-        if expired {
-            feed.ttl = Some(0);
-        }
+    if let Some(expired) = json.get("expired").and_then(Value::as_bool)
+        && expired
+    {
+        feed.ttl = Some(0);
     }
 }
 
@@ -259,6 +268,7 @@ fn parse_authors(
     }
 }
 
+/// Truncate text to maximum length
 fn truncate_text(text: &str, max_length: usize) -> String {
     if text.len() <= max_length {
         text.to_string()

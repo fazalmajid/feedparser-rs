@@ -96,11 +96,16 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn test_entry_clone() {
-        let mut entry = Entry::default();
-        entry.title = Some("Test".to_string());
-        entry.links.push(Link::default());
-
+        fn create_entry() -> Entry {
+            Entry {
+                title: Some("Test".to_string()),
+                links: vec![Link::default()],
+                ..Default::default()
+            }
+        }
+        let entry = create_entry();
         let cloned = entry.clone();
         assert_eq!(cloned.title.as_deref(), Some("Test"));
         assert_eq!(cloned.links.len(), 1);

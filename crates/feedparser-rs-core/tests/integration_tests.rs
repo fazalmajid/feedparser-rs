@@ -1,11 +1,17 @@
+#![allow(
+    missing_docs,
+    clippy::if_then_some_else_none,
+    clippy::single_match_else
+)]
+
 use feedparser_rs_core::{FeedVersion, detect_format, parse};
 
 /// Helper function to load test fixtures
 fn load_fixture(path: &str) -> Vec<u8> {
     // Fixtures are in the workspace root tests/fixtures/ directory
-    let fixture_path = format!("../../tests/fixtures/{}", path);
+    let fixture_path = format!("../../tests/fixtures/{path}");
     std::fs::read(&fixture_path)
-        .unwrap_or_else(|e| panic!("Failed to load fixture '{}': {}", fixture_path, e))
+        .unwrap_or_else(|e| panic!("Failed to load fixture '{fixture_path}': {e}"))
 }
 
 /// Helper to assert basic feed validity

@@ -101,16 +101,15 @@ fn parse_feed_element(
         match reader.read_event_into(&mut buf) {
             Ok(event @ (Event::Start(_) | Event::Empty(_))) => {
                 let is_empty = matches!(event, Event::Empty(_));
-                let e = match &event {
-                    Event::Start(e) | Event::Empty(e) => e,
-                    _ => unreachable!(),
+                let (Event::Start(e) | Event::Empty(e)) = &event else {
+                    unreachable!()
                 };
 
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
+                        "XML nesting depth {depth} exceeds maximum {}",
+                        limits.max_nesting_depth
                     )));
                 }
 
@@ -153,7 +152,7 @@ fn parse_feed_element(
                     b"author" if !is_empty => {
                         if let Ok(person) = parse_person(reader, &mut buf, limits, depth) {
                             if feed.feed.author.is_none() {
-                                feed.feed.author = person.name.clone();
+                                feed.feed.author.clone_from(&person.name);
                                 feed.feed.author_detail = Some(person.clone());
                             }
                             feed.feed
@@ -200,7 +199,7 @@ fn parse_feed_element(
                             feed.bozo = true;
                             feed.bozo_exception =
                                 Some(format!("Entry limit exceeded: {}", limits.max_entries));
-                            skip_element(reader, &mut buf, limits, depth)?;
+                            skip_element(reader, &mut buf, limits, *depth)?;
                             *depth = depth.saturating_sub(1);
                             continue;
                         }
@@ -215,7 +214,7 @@ fn parse_feed_element(
                     }
                     _ => {
                         if !is_empty {
-                            skip_element(reader, &mut buf, limits, depth)?;
+                            skip_element(reader, &mut buf, limits, *depth)?;
                         }
                     }
                 }
@@ -246,16 +245,15 @@ fn parse_entry(
         match reader.read_event_into(buf) {
             Ok(event @ (Event::Start(_) | Event::Empty(_))) => {
                 let is_empty = matches!(event, Event::Empty(_));
-                let e = match &event {
-                    Event::Start(e) | Event::Empty(e) => e,
-                    _ => unreachable!(),
+                let (Event::Start(e) | Event::Empty(e)) = &event else {
+                    unreachable!()
                 };
 
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
+                        "XML nesting depth {depth} exceeds maximum {}",
+                        limits.max_nesting_depth
                     )));
                 }
 
@@ -307,7 +305,7 @@ fn parse_entry(
                     b"author" if !is_empty => {
                         if let Ok(person) = parse_person(reader, buf, limits, depth) {
                             if entry.author.is_none() {
-                                entry.author = person.name.clone();
+                                entry.author.clone_from(&person.name);
                                 entry.author_detail = Some(person.clone());
                             }
                             entry.authors.try_push_limited(person, limits.max_authors);
@@ -338,7 +336,7 @@ fn parse_entry(
                     }
                     _ => {
                         if !is_empty {
-                            skip_element(reader, buf, limits, depth)?;
+                            skip_element(reader, buf, limits, *depth)?;
                         }
                     }
                 }
@@ -414,7 +412,7 @@ fn parse_person(
                     b"name" => name = Some(read_text(reader, buf, limits)?),
                     b"email" => email = Some(read_text(reader, buf, limits)?),
                     b"uri" => uri = Some(read_text(reader, buf, limits)?),
-                    _ => skip_element(reader, buf, limits, depth)?,
+                    _ => skip_element(reader, buf, limits, *depth)?,
                 }
                 *depth = depth.saturating_sub(1);
             }
@@ -517,15 +515,14 @@ fn parse_atom_source(
                         if let Some(l) = Link::from_attributes(
                             element.attributes().flatten(),
                             limits.max_attribute_length,
-                        ) {
-                            if link.is_none() {
-                                link = Some(l.href);
-                            }
+                        ) && link.is_none()
+                        {
+                            link = Some(l.href);
                         }
                         skip_to_end(reader, buf, b"link")?;
                     }
                     b"id" => id = Some(read_text(reader, buf, limits)?),
-                    _ => skip_element(reader, buf, limits, depth)?,
+                    _ => skip_element(reader, buf, limits, *depth)?,
                 }
                 *depth = depth.saturating_sub(1);
             }

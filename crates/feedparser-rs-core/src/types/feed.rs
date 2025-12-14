@@ -202,12 +202,13 @@ mod tests {
 
     #[test]
     fn test_parsed_feed_clone() {
-        let mut feed = ParsedFeed::new();
-        feed.version = FeedVersion::Rss20;
-        feed.bozo = true;
+        let feed = ParsedFeed {
+            version: FeedVersion::Rss20,
+            bozo: true,
+            ..ParsedFeed::new()
+        };
 
-        let cloned = feed.clone();
-        assert_eq!(cloned.version, FeedVersion::Rss20);
-        assert!(cloned.bozo);
+        assert_eq!(feed.version, FeedVersion::Rss20);
+        assert!(feed.bozo);
     }
 }

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use feedparser_rs_core::parse;
 use std::hint::black_box;
@@ -10,7 +12,7 @@ fn bench_parse_feeds(c: &mut Criterion) {
     let mut group = c.benchmark_group("parse");
 
     group.bench_with_input(BenchmarkId::new("rss", "small"), &SMALL_FEED, |b, data| {
-        b.iter(|| parse(black_box(data)))
+        b.iter(|| parse(black_box(data)));
     });
 
     group.bench_with_input(
@@ -20,7 +22,7 @@ fn bench_parse_feeds(c: &mut Criterion) {
     );
 
     group.bench_with_input(BenchmarkId::new("rss", "large"), &LARGE_FEED, |b, data| {
-        b.iter(|| parse(black_box(data)))
+        b.iter(|| parse(black_box(data)));
     });
 
     group.finish();

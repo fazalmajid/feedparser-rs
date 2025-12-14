@@ -29,7 +29,9 @@ use std::collections::HashSet;
 /// assert_eq!(safe_html, "<p>Hello</p>");
 /// ```
 pub fn sanitize_html(input: &str) -> String {
-    let safe_tags: HashSet<&str> = [
+    // NOTE: Inline HashSet construction is faster than LazyLock with .clone()
+    // because ammonia requires owned values. See benchmark results in .local/
+    let safe_tags: HashSet<_> = [
         // Text formatting
         "a",
         "abbr",
@@ -87,20 +89,20 @@ pub fn sanitize_html(input: &str) -> String {
         // Media
         "img",
     ]
-    .iter()
-    .copied()
+    .into_iter()
     .collect();
 
-    let safe_attrs: HashSet<&str> = ["alt", "cite", "class", "href", "id", "src", "title"]
-        .iter()
-        .copied()
+    let safe_attrs: HashSet<_> = ["alt", "cite", "class", "href", "id", "src", "title"]
+        .into_iter()
         .collect();
+
+    let safe_url_schemes: HashSet<_> = ["http", "https", "mailto"].into_iter().collect();
 
     Builder::default()
         .tags(safe_tags)
         .generic_attributes(safe_attrs)
         .link_rel(Some("nofollow noopener noreferrer"))
-        .url_schemes(["http", "https", "mailto"].iter().copied().collect())
+        .url_schemes(safe_url_schemes)
         .clean(input)
         .to_string()
 }
@@ -161,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_removes_script() {
-        let html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
+        let html = r"<p>Hello</p><script>alert('XSS')</script>";
         let clean = sanitize_html(html);
         assert!(!clean.contains("script"));
         assert!(clean.contains("Hello"));
