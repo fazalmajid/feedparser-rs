@@ -5,31 +5,11 @@
 
 use ammonia::Builder;
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
-/// Sanitize HTML content, removing dangerous tags and attributes
-///
-/// This function uses ammonia to clean HTML content, allowing only safe tags
-/// and attributes. It's designed to match feedparser's sanitization behavior.
-///
-/// # Arguments
-///
-/// * `input` - HTML string to sanitize
-///
-/// # Returns
-///
-/// Sanitized HTML string with dangerous content removed
-///
-/// # Examples
-///
-/// ```
-/// use feedparser_rs_core::util::sanitize::sanitize_html;
-///
-/// let unsafe_html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
-/// let safe_html = sanitize_html(unsafe_html);
-/// assert_eq!(safe_html, "<p>Hello</p>");
-/// ```
-pub fn sanitize_html(input: &str) -> String {
-    let safe_tags: HashSet<&str> = [
+/// Safe HTML tags allowed in feed content
+static SAFE_TAGS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
+    [
         // Text formatting
         "a",
         "abbr",
@@ -89,18 +69,52 @@ pub fn sanitize_html(input: &str) -> String {
     ]
     .iter()
     .copied()
-    .collect();
+    .collect()
+});
 
-    let safe_attrs: HashSet<&str> = ["alt", "cite", "class", "href", "id", "src", "title"]
+/// Safe HTML attributes allowed in feed content
+static SAFE_ATTRS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
+    ["alt", "cite", "class", "href", "id", "src", "title"]
         .iter()
         .copied()
-        .collect();
+        .collect()
+});
 
+/// Safe URL schemes allowed in feed content
+static SAFE_URL_SCHEMES: LazyLock<HashSet<&str>> =
+    LazyLock::new(|| ["http", "https", "mailto"].iter().copied().collect());
+
+/// Empty HashSet for stripping all tags
+static EMPTY_TAGS: LazyLock<HashSet<&str>> = LazyLock::new(HashSet::new);
+
+/// Sanitize HTML content, removing dangerous tags and attributes
+///
+/// This function uses ammonia to clean HTML content, allowing only safe tags
+/// and attributes. It's designed to match feedparser's sanitization behavior.
+///
+/// # Arguments
+///
+/// * `input` - HTML string to sanitize
+///
+/// # Returns
+///
+/// Sanitized HTML string with dangerous content removed
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs_core::util::sanitize::sanitize_html;
+///
+/// let unsafe_html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
+/// let safe_html = sanitize_html(unsafe_html);
+/// assert_eq!(safe_html, "<p>Hello</p>");
+/// ```
+pub fn sanitize_html(input: &str) -> String {
     Builder::default()
-        .tags(safe_tags)
-        .generic_attributes(safe_attrs)
+        .tags(SAFE_TAGS.clone())
+        .generic_attributes(SAFE_ATTRS.clone())
         .link_rel(Some("nofollow noopener noreferrer"))
-        .url_schemes(["http", "https", "mailto"].iter().copied().collect())
+        .url_schemes(SAFE_URL_SCHEMES.clone())
         .clean(input)
         .to_string()
 }
@@ -150,7 +164,7 @@ pub fn sanitize_and_decode(input: &str) -> String {
 /// ```
 pub fn strip_tags(input: &str) -> String {
     Builder::default()
-        .tags(HashSet::new())
+        .tags(EMPTY_TAGS.clone())
         .clean(input)
         .to_string()
 }
