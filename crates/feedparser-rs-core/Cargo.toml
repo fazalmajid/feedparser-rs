@@ -1,28 +1,28 @@
 [package]
 name = "feedparser-rs-core"
+description = "High-performance RSS/Atom/JSON Feed parser"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "High-performance RSS/Atom/JSON Feed parser"
-readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 repository.workspace = true
 
 [dependencies]
-quick-xml = { workspace = true }
-chrono = { workspace = true }
-thiserror = { workspace = true }
-ammonia = { workspace = true }
-html-escape = { workspace = true }
-encoding_rs = { workspace = true }
-memchr = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+ammonia.workspace = true
+chrono = { workspace = true, features = ["std", "clock"] }
+encoding_rs.workspace = true
+html-escape.workspace = true
+memchr.workspace = true
+quick-xml.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-criterion = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]
 name = "parsing"

@@ -1,6 +1,7 @@
 mod common;
 mod entry;
 mod feed;
+pub mod generics;
 mod version;
 
 pub use common::{
@@ -8,4 +9,5 @@ pub use common::{
 };
 pub use entry::Entry;
 pub use feed::{FeedMeta, ParsedFeed};
+pub use generics::{DetailedField, FromAttributes, LimitedCollectionExt};
 pub use version::FeedVersion;

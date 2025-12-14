@@ -13,39 +13,20 @@ keywords = ["rss", "atom", "feed", "parser", "feedparser"]
 categories = ["parsing", "web-programming"]
 
 [workspace.dependencies]
-# XML parsing
-quick-xml = "0.38"
-
-# Date/time
-chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
-
-# Error handling
-thiserror = "2.0"
-anyhow = "1.0"
-
-# HTML sanitization
 ammonia = "4.1"
-html-escape = "0.2"
-
-# Encoding
+anyhow = "1.0"
+chrono = { version = "0.4", default-features = false }
+criterion = "0.6"
 encoding_rs = "0.8"
-
-# String utilities
+html-escape = "0.2"
 memchr = "2.7"
-
-# Serialization (for JSON Feed support and Python bindings)
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Python bindings (Phase 4)
-pyo3 = { version = "0.27", features = ["extension-module"] }
-
-# Node.js bindings (Phase 6)
-napi = { version = "3.7", features = ["napi9"] }
+napi = "3.7"
 napi-derive = "3.0"
-
-# Testing
-criterion = { version = "0.8", features = ["html_reports"] }
+pyo3 = "0.27"
+quick-xml = "0.38"
+serde = "1.0"
+serde_json = "1.0"
+thiserror = "2.0"
 
 [workspace.lints.rust]
 unsafe_code = "warn"
@@ -55,7 +36,6 @@ missing_docs = "warn"
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
-# Allow patterns common in parser code
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 too_many_lines = "allow"

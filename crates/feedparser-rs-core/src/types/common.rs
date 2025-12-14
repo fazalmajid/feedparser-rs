@@ -1,3 +1,14 @@
+use super::generics::FromAttributes;
+
+/// Helper for efficient bytes to string conversion
+#[inline]
+fn bytes_to_string(value: &[u8]) -> String {
+    match std::str::from_utf8(value) {
+        Ok(s) => s.to_string(),
+        Err(_) => String::from_utf8_lossy(value).into_owned(),
+    }
+}
+
 /// Link in feed or entry
 #[derive(Debug, Clone, Default)]
 pub struct Link {
@@ -122,6 +133,104 @@ pub struct Source {
     pub link: Option<String>,
     /// Source ID
     pub id: Option<String>,
+}
+
+impl FromAttributes for Link {
+    fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
+    where
+        I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>,
+    {
+        let mut href = None;
+        let mut rel = None;
+        let mut link_type = None;
+        let mut title = None;
+        let mut hreflang = None;
+        let mut length = None;
+
+        for attr in attrs {
+            if attr.value.len() > max_attr_length {
+                continue;
+            }
+            match attr.key.as_ref() {
+                b"href" => href = Some(bytes_to_string(&attr.value)),
+                b"rel" => rel = Some(bytes_to_string(&attr.value)),
+                b"type" => link_type = Some(bytes_to_string(&attr.value)),
+                b"title" => title = Some(bytes_to_string(&attr.value)),
+                b"hreflang" => hreflang = Some(bytes_to_string(&attr.value)),
+                b"length" => length = bytes_to_string(&attr.value).parse().ok(),
+                _ => {}
+            }
+        }
+
+        href.map(|href| Link {
+            href,
+            rel: rel.or_else(|| Some("alternate".to_string())),
+            link_type,
+            title,
+            length,
+            hreflang,
+        })
+    }
+}
+
+impl FromAttributes for Tag {
+    fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
+    where
+        I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>,
+    {
+        let mut term = None;
+        let mut scheme = None;
+        let mut label = None;
+
+        for attr in attrs {
+            if attr.value.len() > max_attr_length {
+                continue;
+            }
+
+            match attr.key.as_ref() {
+                b"term" => term = Some(bytes_to_string(&attr.value)),
+                b"scheme" | b"domain" => scheme = Some(bytes_to_string(&attr.value)),
+                b"label" => label = Some(bytes_to_string(&attr.value)),
+                _ => {}
+            }
+        }
+
+        term.map(|term| Tag {
+            term,
+            scheme,
+            label,
+        })
+    }
+}
+
+impl FromAttributes for Enclosure {
+    fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
+    where
+        I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>,
+    {
+        let mut url = None;
+        let mut length = None;
+        let mut enclosure_type = None;
+
+        for attr in attrs {
+            if attr.value.len() > max_attr_length {
+                continue;
+            }
+
+            match attr.key.as_ref() {
+                b"url" => url = Some(bytes_to_string(&attr.value)),
+                b"length" => length = bytes_to_string(&attr.value).parse().ok(),
+                b"type" => enclosure_type = Some(bytes_to_string(&attr.value)),
+                _ => {}
+            }
+        }
+
+        url.map(|url| Enclosure {
+            url,
+            length,
+            enclosure_type,
+        })
+    }
 }
 
 #[cfg(test)]

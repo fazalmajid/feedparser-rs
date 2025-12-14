@@ -47,7 +47,7 @@ mod util;
 
 pub use error::{FeedError, Result};
 pub use limits::{LimitError, ParserLimits};
-pub use parser::{detect_format, parse};
+pub use parser::{detect_format, parse, parse_with_limits};
 pub use types::{
     Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, Link, ParsedFeed, Person,
     Source, Tag, TextConstruct, TextType,
