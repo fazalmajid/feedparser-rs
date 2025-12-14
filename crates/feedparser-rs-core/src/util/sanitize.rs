@@ -5,11 +5,33 @@
 
 use ammonia::Builder;
 use std::collections::HashSet;
-use std::sync::LazyLock;
 
-/// Safe HTML tags allowed in feed content
-static SAFE_TAGS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
-    [
+/// Sanitize HTML content, removing dangerous tags and attributes
+///
+/// This function uses ammonia to clean HTML content, allowing only safe tags
+/// and attributes. It's designed to match feedparser's sanitization behavior.
+///
+/// # Arguments
+///
+/// * `input` - HTML string to sanitize
+///
+/// # Returns
+///
+/// Sanitized HTML string with dangerous content removed
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs_core::util::sanitize::sanitize_html;
+///
+/// let unsafe_html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
+/// let safe_html = sanitize_html(unsafe_html);
+/// assert_eq!(safe_html, "<p>Hello</p>");
+/// ```
+pub fn sanitize_html(input: &str) -> String {
+    // NOTE: Inline HashSet construction is faster than LazyLock with .clone()
+    // because ammonia requires owned values. See benchmark results in .local/
+    let safe_tags: HashSet<_> = [
         // Text formatting
         "a",
         "abbr",
@@ -67,54 +89,20 @@ static SAFE_TAGS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
         // Media
         "img",
     ]
-    .iter()
-    .copied()
-    .collect()
-});
+    .into_iter()
+    .collect();
 
-/// Safe HTML attributes allowed in feed content
-static SAFE_ATTRS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
-    ["alt", "cite", "class", "href", "id", "src", "title"]
-        .iter()
-        .copied()
-        .collect()
-});
+    let safe_attrs: HashSet<_> = ["alt", "cite", "class", "href", "id", "src", "title"]
+        .into_iter()
+        .collect();
 
-/// Safe URL schemes allowed in feed content
-static SAFE_URL_SCHEMES: LazyLock<HashSet<&str>> =
-    LazyLock::new(|| ["http", "https", "mailto"].iter().copied().collect());
+    let safe_url_schemes: HashSet<_> = ["http", "https", "mailto"].into_iter().collect();
 
-/// Empty HashSet for stripping all tags
-static EMPTY_TAGS: LazyLock<HashSet<&str>> = LazyLock::new(HashSet::new);
-
-/// Sanitize HTML content, removing dangerous tags and attributes
-///
-/// This function uses ammonia to clean HTML content, allowing only safe tags
-/// and attributes. It's designed to match feedparser's sanitization behavior.
-///
-/// # Arguments
-///
-/// * `input` - HTML string to sanitize
-///
-/// # Returns
-///
-/// Sanitized HTML string with dangerous content removed
-///
-/// # Examples
-///
-/// ```
-/// use feedparser_rs_core::util::sanitize::sanitize_html;
-///
-/// let unsafe_html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
-/// let safe_html = sanitize_html(unsafe_html);
-/// assert_eq!(safe_html, "<p>Hello</p>");
-/// ```
-pub fn sanitize_html(input: &str) -> String {
     Builder::default()
-        .tags(SAFE_TAGS.clone())
-        .generic_attributes(SAFE_ATTRS.clone())
+        .tags(safe_tags)
+        .generic_attributes(safe_attrs)
         .link_rel(Some("nofollow noopener noreferrer"))
-        .url_schemes(SAFE_URL_SCHEMES.clone())
+        .url_schemes(safe_url_schemes)
         .clean(input)
         .to_string()
 }
@@ -164,7 +152,7 @@ pub fn sanitize_and_decode(input: &str) -> String {
 /// ```
 pub fn strip_tags(input: &str) -> String {
     Builder::default()
-        .tags(EMPTY_TAGS.clone())
+        .tags(HashSet::new())
         .clean(input)
         .to_string()
 }

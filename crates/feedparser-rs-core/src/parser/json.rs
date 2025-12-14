@@ -12,9 +12,9 @@ use crate::{
     util::date::parse_date,
 };
 use serde_json::Value;
-use std::borrow::Cow;
 
 /// Parse JSON Feed with default limits
+#[allow(dead_code)]
 pub fn parse_json_feed(data: &[u8]) -> Result<ParsedFeed> {
     parse_json_feed_with_limits(data, ParserLimits::default())
 }
@@ -77,14 +77,14 @@ pub fn parse_json_feed_with_limits(data: &[u8], limits: ParserLimits) -> Result<
 fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits) {
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        feed.title_detail = Some(TextConstruct::text(truncated.as_ref()));
-        feed.title = Some(truncated.into_owned());
+        feed.title_detail = Some(TextConstruct::text(&truncated));
+        feed.title = Some(truncated);
     }
 
-    if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str()) {
-        if url.len() <= limits.max_text_length {
-            feed.link = Some(url.to_string());
-        }
+    if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str())
+        && url.len() <= limits.max_text_length
+    {
+        feed.link = Some(url.to_string());
     }
 
     if let Some(feed_url) = json.get("feed_url").and_then(|v| v.as_str()) {
@@ -96,27 +96,27 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
 
     if let Some(description) = json.get("description").and_then(|v| v.as_str()) {
         let truncated = truncate_text(description, limits.max_text_length);
-        feed.subtitle_detail = Some(TextConstruct::text(truncated.as_ref()));
-        feed.subtitle = Some(truncated.into_owned());
+        feed.subtitle_detail = Some(TextConstruct::text(&truncated));
+        feed.subtitle = Some(truncated);
     }
 
-    if let Some(icon) = json.get("icon").and_then(|v| v.as_str()) {
-        if icon.len() <= limits.max_text_length {
-            feed.icon = Some(icon.to_string());
-        }
+    if let Some(icon) = json.get("icon").and_then(|v| v.as_str())
+        && icon.len() <= limits.max_text_length
+    {
+        feed.icon = Some(icon.to_string());
     }
 
-    if let Some(favicon) = json.get("favicon").and_then(|v| v.as_str()) {
-        if favicon.len() <= limits.max_text_length {
-            feed.image = Some(Image {
-                url: favicon.to_string(),
-                title: None,
-                link: None,
-                width: None,
-                height: None,
-                description: None,
-            });
-        }
+    if let Some(favicon) = json.get("favicon").and_then(|v| v.as_str())
+        && favicon.len() <= limits.max_text_length
+    {
+        feed.image = Some(Image {
+            url: favicon.to_string(),
+            title: None,
+            link: None,
+            width: None,
+            height: None,
+            description: None,
+        });
     }
 
     parse_authors(
@@ -127,16 +127,16 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
         limits,
     );
 
-    if let Some(language) = json.get("language").and_then(|v| v.as_str()) {
-        if language.len() <= limits.max_text_length {
-            feed.language = Some(language.to_string());
-        }
+    if let Some(language) = json.get("language").and_then(|v| v.as_str())
+        && language.len() <= limits.max_text_length
+    {
+        feed.language = Some(language.to_string());
     }
 
-    if let Some(expired) = json.get("expired").and_then(Value::as_bool) {
-        if expired {
-            feed.ttl = Some(0);
-        }
+    if let Some(expired) = json.get("expired").and_then(Value::as_bool)
+        && expired
+    {
+        feed.ttl = Some(0);
     }
 }
 
@@ -162,28 +162,28 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        entry.title_detail = Some(TextConstruct::text(truncated.as_ref()));
-        entry.title = Some(truncated.into_owned());
+        entry.title_detail = Some(TextConstruct::text(&truncated));
+        entry.title = Some(truncated);
     }
 
     if let Some(content_html) = json.get("content_html").and_then(|v| v.as_str()) {
         let text = truncate_text(content_html, limits.max_text_length);
         let _ = entry
             .content
-            .try_push_limited(Content::html(text.into_owned()), limits.max_entries);
+            .try_push_limited(Content::html(text), limits.max_entries);
     }
 
     if let Some(content_text) = json.get("content_text").and_then(|v| v.as_str()) {
         let text = truncate_text(content_text, limits.max_text_length);
         let _ = entry
             .content
-            .try_push_limited(Content::plain(text.into_owned()), limits.max_entries);
+            .try_push_limited(Content::plain(text), limits.max_entries);
     }
 
     if let Some(summary) = json.get("summary").and_then(|v| v.as_str()) {
         let truncated = truncate_text(summary, limits.max_text_length);
-        entry.summary_detail = Some(TextConstruct::text(truncated.as_ref()));
-        entry.summary = Some(truncated.into_owned());
+        entry.summary_detail = Some(TextConstruct::text(&truncated));
+        entry.summary = Some(truncated);
     }
 
     if let Some(image) = json.get("image").and_then(|v| v.as_str()) {
@@ -268,15 +268,12 @@ fn parse_authors(
     }
 }
 
-/// Truncate text to maximum length, avoiding allocation when possible
-///
-/// Returns `Cow::Borrowed` when text is under limit (zero-copy),
-/// `Cow::Owned` when truncation is needed.
-fn truncate_text(text: &str, max_length: usize) -> Cow<'_, str> {
+/// Truncate text to maximum length
+fn truncate_text(text: &str, max_length: usize) -> String {
     if text.len() <= max_length {
-        Cow::Borrowed(text)
+        text.to_string()
     } else {
-        Cow::Owned(text.chars().take(max_length).collect())
+        text.chars().take(max_length).collect()
     }
 }
 
@@ -506,20 +503,5 @@ mod tests {
         assert_eq!(truncate_text("hello", 10), "hello");
         assert_eq!(truncate_text("hello world", 5), "hello");
         assert_eq!(truncate_text("", 10), "");
-    }
-
-    #[test]
-    fn test_truncate_avoids_allocation() {
-        // Short text should return Borrowed (no allocation)
-        let short = "hello";
-        let result = truncate_text(short, 100);
-        assert!(matches!(result, Cow::Borrowed(_)));
-        assert_eq!(result, "hello");
-
-        // Long text should return Owned (truncated)
-        let long = "a".repeat(1000);
-        let result = truncate_text(&long, 10);
-        assert!(matches!(result, Cow::Owned(_)));
-        assert_eq!(result.len(), 10);
     }
 }

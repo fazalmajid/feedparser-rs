@@ -43,7 +43,7 @@ impl<V, D> DetailedField<V, D> {
     /// Create a field with only a simple value
     #[inline]
     #[must_use]
-    pub fn from_value(value: V) -> Self {
+    pub const fn from_value(value: V) -> Self {
         Self {
             value,
             detail: None,
@@ -53,7 +53,7 @@ impl<V, D> DetailedField<V, D> {
     /// Create a field with both value and detail
     #[inline]
     #[must_use]
-    pub fn with_detail(value: V, detail: D) -> Self {
+    pub const fn with_detail(value: V, detail: D) -> Self {
         Self {
             value,
             detail: Some(detail),
@@ -63,26 +63,26 @@ impl<V, D> DetailedField<V, D> {
     /// Get reference to the simple value
     #[inline]
     #[must_use]
-    pub fn value(&self) -> &V {
+    pub const fn value(&self) -> &V {
         &self.value
     }
 
     /// Get mutable reference to the simple value
     #[inline]
-    pub fn value_mut(&mut self) -> &mut V {
+    pub const fn value_mut(&mut self) -> &mut V {
         &mut self.value
     }
 
     /// Get reference to the detail if present
     #[inline]
     #[must_use]
-    pub fn detail(&self) -> Option<&D> {
+    pub const fn detail(&self) -> Option<&D> {
         self.detail.as_ref()
     }
 
     /// Get mutable reference to the detail if present
     #[inline]
-    pub fn detail_mut(&mut self) -> Option<&mut D> {
+    pub const fn detail_mut(&mut self) -> Option<&mut D> {
         self.detail.as_mut()
     }
 
@@ -94,7 +94,7 @@ impl<V, D> DetailedField<V, D> {
 
     /// Take the detail, leaving None in its place
     #[inline]
-    pub fn take_detail(&mut self) -> Option<D> {
+    pub const fn take_detail(&mut self) -> Option<D> {
         self.detail.take()
     }
 
@@ -130,7 +130,7 @@ impl<V, D> From<(V, D)> for DetailedField<V, D> {
 /// Extension trait for collections with size limits
 ///
 /// Provides methods for safely adding items to collections while respecting
-/// configured limits, which is essential for DoS protection.
+/// configured limits, which is essential for `DoS` protection.
 ///
 /// # Examples
 ///

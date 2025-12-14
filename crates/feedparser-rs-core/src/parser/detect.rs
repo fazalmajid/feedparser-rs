@@ -60,14 +60,14 @@ fn detect_json_feed_version(data: &[u8]) -> FeedVersion {
     }
 
     // Try to parse as JSON and check version field
-    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(data) {
-        if let Some(version) = json.get("version").and_then(|v| v.as_str()) {
-            return match version {
-                "https://jsonfeed.org/version/1" => FeedVersion::JsonFeed10,
-                "https://jsonfeed.org/version/1.1" => FeedVersion::JsonFeed11,
-                _ => FeedVersion::Unknown,
-            };
-        }
+    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(data)
+        && let Some(version) = json.get("version").and_then(|v| v.as_str())
+    {
+        return match version {
+            "https://jsonfeed.org/version/1" => FeedVersion::JsonFeed10,
+            "https://jsonfeed.org/version/1.1" => FeedVersion::JsonFeed11,
+            _ => FeedVersion::Unknown,
+        };
     }
     FeedVersion::Unknown
 }

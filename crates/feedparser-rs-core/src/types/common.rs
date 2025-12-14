@@ -4,10 +4,10 @@ use serde_json::Value;
 /// Helper for efficient bytes to string conversion
 #[inline]
 fn bytes_to_string(value: &[u8]) -> String {
-    match std::str::from_utf8(value) {
-        Ok(s) => s.to_string(),
-        Err(_) => String::from_utf8_lossy(value).into_owned(),
-    }
+    std::str::from_utf8(value).map_or_else(
+        |_| String::from_utf8_lossy(value).into_owned(),
+        std::string::ToString::to_string,
+    )
 }
 
 /// Link in feed or entry
@@ -292,7 +292,7 @@ impl FromAttributes for Link {
             }
         }
 
-        href.map(|href| Link {
+        href.map(|href| Self {
             href,
             rel: rel.or_else(|| Some("alternate".to_string())),
             link_type,
@@ -325,7 +325,7 @@ impl FromAttributes for Tag {
             }
         }
 
-        term.map(|term| Tag {
+        term.map(|term| Self {
             term,
             scheme,
             label,
@@ -355,7 +355,7 @@ impl FromAttributes for Enclosure {
             }
         }
 
-        url.map(|url| Enclosure {
+        url.map(|url| Self {
             url,
             length,
             enclosure_type,

@@ -66,25 +66,25 @@ fn extract_xml_encoding(data: &[u8]) -> Option<&'static str> {
     let search_len = data.len().min(512);
     let search_data = &data[..search_len];
 
-    if let Ok(header) = std::str::from_utf8(search_data) {
-        if let Some(enc_start) = header.find("encoding=") {
-            let after_eq = &header[enc_start + 9..];
-            let quote = after_eq.chars().next()?;
-            if quote == '"' || quote == '\'' {
-                let quote_end = after_eq[1..].find(quote)?;
-                let encoding_name = &after_eq[1..=quote_end];
-                return normalize_encoding_name(encoding_name);
-            }
+    if let Ok(header) = std::str::from_utf8(search_data)
+        && let Some(enc_start) = header.find("encoding=")
+    {
+        let after_eq = &header[enc_start + 9..];
+        let quote = after_eq.chars().next()?;
+        if quote == '"' || quote == '\'' {
+            let quote_end = after_eq[1..].find(quote)?;
+            let encoding_name = &after_eq[1..=quote_end];
+            return normalize_encoding_name(encoding_name);
         }
     }
 
     None
 }
 
-/// Normalize encoding name to encoding_rs canonical form
+/// Normalize encoding name to `encoding_rs` canonical form
 fn normalize_encoding_name(name: &str) -> Option<&'static str> {
     let normalized = name.trim().to_lowercase();
-    Encoding::for_label(normalized.as_bytes()).map(|enc| enc.name())
+    Encoding::for_label(normalized.as_bytes()).map(encoding_rs::Encoding::name)
 }
 
 /// Convert data to UTF-8 from detected encoding
@@ -108,6 +108,11 @@ fn normalize_encoding_name(name: &str) -> Option<&'static str> {
 /// let utf8 = convert_to_utf8(latin1, "iso-8859-1").unwrap();
 /// assert_eq!(utf8, "é");
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the encoding conversion encounters invalid byte sequences
+/// that cannot be properly decoded.
 pub fn convert_to_utf8(data: &[u8], encoding_name: &str) -> Result<String, String> {
     let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
 
@@ -115,8 +120,7 @@ pub fn convert_to_utf8(data: &[u8], encoding_name: &str) -> Result<String, Strin
 
     if had_errors {
         Err(format!(
-            "Encoding conversion from {} had errors",
-            encoding_name
+            "Encoding conversion from {encoding_name} had errors"
         ))
     } else {
         Ok(cow.into_owned())
@@ -135,6 +139,11 @@ pub fn convert_to_utf8(data: &[u8], encoding_name: &str) -> Result<String, Strin
 /// assert_eq!(detected_encoding, "UTF-8");
 /// assert!(utf8.contains("Test"));
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the encoding conversion encounters invalid byte sequences
+/// that cannot be properly decoded.
 pub fn detect_and_convert(data: &[u8]) -> Result<(String, &'static str), String> {
     let encoding_name = detect_encoding(data);
     let utf8_string = convert_to_utf8(data, encoding_name)?;

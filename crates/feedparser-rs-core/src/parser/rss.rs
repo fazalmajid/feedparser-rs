@@ -43,6 +43,7 @@ use super::common::{
 /// let feed = parse_rss20(xml).unwrap();
 /// assert_eq!(feed.feed.title.as_deref(), Some("Example"));
 /// ```
+#[allow(dead_code)]
 pub fn parse_rss20(data: &[u8]) -> Result<ParsedFeed> {
     parse_rss20_with_limits(data, ParserLimits::default())
 }
@@ -171,7 +172,7 @@ fn parse_channel(
                             feed.bozo = true;
                             feed.bozo_exception =
                                 Some(format!("Entry limit exceeded: {}", limits.max_entries));
-                            skip_element(reader, &mut buf, limits, depth)?;
+                            skip_element(reader, &mut buf, limits, *depth)?;
                             *depth = depth.saturating_sub(1);
                             continue;
                         }
@@ -184,7 +185,7 @@ fn parse_channel(
                             }
                         }
                     }
-                    _ => skip_element(reader, &mut buf, limits, depth)?,
+                    _ => skip_element(reader, &mut buf, limits, *depth)?,
                 }
                 *depth = depth.saturating_sub(1);
             }
@@ -274,7 +275,7 @@ fn parse_item(
                                 .enclosures
                                 .try_push_limited(enclosure, limits.max_enclosures);
                         }
-                        skip_element(reader, buf, limits, depth)?;
+                        skip_element(reader, buf, limits, *depth)?;
                     }
                     b"comments" => {
                         entry.comments = Some(read_text(reader, buf, limits)?);
@@ -285,7 +286,7 @@ fn parse_item(
                         }
                     }
                     _ => {
-                        skip_element(reader, buf, limits, depth)?;
+                        skip_element(reader, buf, limits, *depth)?;
                     }
                 }
                 *depth = depth.saturating_sub(1);
@@ -343,7 +344,7 @@ fn parse_image(
                         }
                     }
                     b"description" => description = Some(read_text(reader, buf, limits)?),
-                    _ => skip_element(reader, buf, limits, depth)?,
+                    _ => skip_element(reader, buf, limits, *depth)?,
                 }
                 *depth = depth.saturating_sub(1);
             }
@@ -399,7 +400,7 @@ fn parse_source(
                 match e.local_name().as_ref() {
                     b"title" => title = Some(read_text(reader, buf, limits)?),
                     b"url" => link = Some(read_text(reader, buf, limits)?),
-                    _ => skip_element(reader, buf, limits, depth)?,
+                    _ => skip_element(reader, buf, limits, *depth)?,
                 }
                 *depth = depth.saturating_sub(1);
             }

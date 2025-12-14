@@ -53,6 +53,13 @@ pub fn parse(data: &[u8]) -> Result<ParsedFeed> {
 /// let limits = ParserLimits::strict();
 /// let feed = parse_with_limits(xml, limits).unwrap();
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Feed size exceeds limits
+/// - Format is unknown or unsupported
+/// - Fatal parsing error occurs
 pub fn parse_with_limits(data: &[u8], limits: crate::ParserLimits) -> Result<ParsedFeed> {
     use crate::FeedError;
     use crate::types::FeedVersion;
