@@ -1,4 +1,5 @@
-use super::generics::FromAttributes;
+use super::generics::{FromAttributes, ParseFrom};
+use serde_json::Value;
 
 /// Helper for efficient bytes to string conversion
 #[inline]
@@ -26,6 +27,67 @@ pub struct Link {
     pub hreflang: Option<String>,
 }
 
+impl Link {
+    /// Create a new link with just URL and relation type
+    #[inline]
+    pub fn new(href: impl Into<String>, rel: impl Into<String>) -> Self {
+        Self {
+            href: href.into(),
+            rel: Some(rel.into()),
+            link_type: None,
+            title: None,
+            length: None,
+            hreflang: None,
+        }
+    }
+
+    /// Create an alternate link (common for entry URLs)
+    #[inline]
+    pub fn alternate(href: impl Into<String>) -> Self {
+        Self::new(href, "alternate")
+    }
+
+    /// Create a self link (for feed URLs)
+    #[inline]
+    pub fn self_link(href: impl Into<String>, mime_type: impl Into<String>) -> Self {
+        Self {
+            href: href.into(),
+            rel: Some("self".to_string()),
+            link_type: Some(mime_type.into()),
+            title: None,
+            length: None,
+            hreflang: None,
+        }
+    }
+
+    /// Create an enclosure link (for media)
+    #[inline]
+    pub fn enclosure(href: impl Into<String>, mime_type: Option<String>) -> Self {
+        Self {
+            href: href.into(),
+            rel: Some("enclosure".to_string()),
+            link_type: mime_type,
+            title: None,
+            length: None,
+            hreflang: None,
+        }
+    }
+
+    /// Create a related link
+    #[inline]
+    pub fn related(href: impl Into<String>) -> Self {
+        Self::new(href, "related")
+    }
+
+    /// Set MIME type (builder pattern)
+    #[inline]
+    #[must_use]
+    pub fn with_type(mut self, mime_type: impl Into<String>) -> Self {
+        self.link_type = Some(mime_type.into());
+        self
+    }
+}
+
 /// Person (author, contributor, etc.)
 #[derive(Debug, Clone, Default)]
 pub struct Person {
@@ -46,6 +108,18 @@ pub struct Tag {
     pub scheme: Option<String>,
     /// Human-readable tag label
     pub label: Option<String>,
+}
+
+impl Tag {
+    /// Create a simple tag with just term
+    #[inline]
+    pub fn new(term: impl Into<String>) -> Self {
+        Self {
+            term: term.into(),
+            scheme: None,
+            label: None,
+        }
+    }
 }
 
 /// Image metadata
@@ -89,6 +163,30 @@ pub struct Content {
     pub base: Option<String>,
 }
 
+impl Content {
+    /// Create HTML content
+    #[inline]
+    pub fn html(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            content_type: Some("text/html".to_string()),
+            language: None,
+            base: None,
+        }
+    }
+
+    /// Create plain text content
+    #[inline]
+    pub fn plain(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            content_type: Some("text/plain".to_string()),
+            language: None,
+            base: None,
+        }
+    }
+}
+
 /// Text construct type (Atom-style)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextType {
@@ -111,6 +209,38 @@ pub struct TextConstruct {
     pub language: Option<String>,
     /// Base URL for relative links
     pub base: Option<String>,
+}
+
+impl TextConstruct {
+    /// Create plain text construct
+    #[inline]
+    pub fn text(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            content_type: TextType::Text,
+            language: None,
+            base: None,
+        }
+    }
+
+    /// Create HTML text construct
+    #[inline]
+    pub fn html(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            content_type: TextType::Html,
+            language: None,
+            base: None,
+        }
+    }
+
+    /// Set language (builder pattern)
+    #[inline]
+    #[must_use]
+    pub fn with_language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
+        self
+    }
 }
 
 /// Generator metadata
@@ -233,9 +363,43 @@ impl FromAttributes for Enclosure {
     }
 }
 
+// ParseFrom implementations for JSON Feed parsing
+
+impl ParseFrom<&Value> for Person {
+    /// Parse Person from JSON Feed author object
+    ///
+    /// JSON Feed format: `{"name": "...", "url": "...", "avatar": "..."}`
+    fn parse_from(json: &Value) -> Option<Self> {
+        json.as_object().map(|obj| Self {
+            name: obj.get("name").and_then(Value::as_str).map(String::from),
+            email: None, // JSON Feed doesn't have email field
+            uri: obj.get("url").and_then(Value::as_str).map(String::from),
+        })
+    }
+}
+
+impl ParseFrom<&Value> for Enclosure {
+    /// Parse Enclosure from JSON Feed attachment object
+    ///
+    /// JSON Feed format: `{"url": "...", "mime_type": "...", "size_in_bytes": ...}`
+    fn parse_from(json: &Value) -> Option<Self> {
+        let obj = json.as_object()?;
+        let url = obj.get("url").and_then(Value::as_str)?;
+        Some(Self {
+            url: url.to_string(),
+            length: obj.get("size_in_bytes").and_then(Value::as_u64),
+            enclosure_type: obj
+                .get("mime_type")
+                .and_then(Value::as_str)
+                .map(String::from),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_link_default() {
@@ -245,11 +409,93 @@ mod tests {
     }
 
     #[test]
+    fn test_link_builders() {
+        let link = Link::alternate("https://example.com");
+        assert_eq!(link.href, "https://example.com");
+        assert_eq!(link.rel.as_deref(), Some("alternate"));
+
+        let link = Link::self_link("https://example.com/feed", "application/feed+json");
+        assert_eq!(link.rel.as_deref(), Some("self"));
+        assert_eq!(link.link_type.as_deref(), Some("application/feed+json"));
+
+        let link = Link::enclosure("https://example.com/audio.mp3", Some("audio/mpeg".to_string()));
+        assert_eq!(link.rel.as_deref(), Some("enclosure"));
+        assert_eq!(link.link_type.as_deref(), Some("audio/mpeg"));
+
+        let link = Link::related("https://other.com");
+        assert_eq!(link.rel.as_deref(), Some("related"));
+    }
+
+    #[test]
+    fn test_tag_builder() {
+        let tag = Tag::new("rust");
+        assert_eq!(tag.term, "rust");
+        assert!(tag.scheme.is_none());
+    }
+
+    #[test]
+    fn test_text_construct_builders() {
+        let text = TextConstruct::text("Hello");
+        assert_eq!(text.value, "Hello");
+        assert_eq!(text.content_type, TextType::Text);
+
+        let html = TextConstruct::html("<p>Hello</p>");
+        assert_eq!(html.content_type, TextType::Html);
+
+        let with_lang = TextConstruct::text("Hello").with_language("en");
+        assert_eq!(with_lang.language.as_deref(), Some("en"));
+    }
+
+    #[test]
+    fn test_content_builders() {
+        let html = Content::html("<p>Content</p>");
+        assert_eq!(html.content_type.as_deref(), Some("text/html"));
+
+        let plain = Content::plain("Content");
+        assert_eq!(plain.content_type.as_deref(), Some("text/plain"));
+    }
+
+    #[test]
     fn test_person_default() {
         let person = Person::default();
         assert!(person.name.is_none());
         assert!(person.email.is_none());
         assert!(person.uri.is_none());
+    }
+
+    #[test]
+    fn test_person_parse_from_json() {
+        let json = json!({"name": "John Doe", "url": "https://example.com"});
+        let person = Person::parse_from(&json).unwrap();
+        assert_eq!(person.name.as_deref(), Some("John Doe"));
+        assert_eq!(person.uri.as_deref(), Some("https://example.com"));
+        assert!(person.email.is_none());
+    }
+
+    #[test]
+    fn test_person_parse_from_empty_json() {
+        let json = json!({});
+        let person = Person::parse_from(&json).unwrap();
+        assert!(person.name.is_none());
+    }
+
+    #[test]
+    fn test_enclosure_parse_from_json() {
+        let json = json!({
+            "url": "https://example.com/file.mp3",
+            "mime_type": "audio/mpeg",
+            "size_in_bytes": 12345
+        });
+        let enclosure = Enclosure::parse_from(&json).unwrap();
+        assert_eq!(enclosure.url, "https://example.com/file.mp3");
+        assert_eq!(enclosure.enclosure_type.as_deref(), Some("audio/mpeg"));
+        assert_eq!(enclosure.length, Some(12345));
+    }
+
+    #[test]
+    fn test_enclosure_parse_from_json_missing_url() {
+        let json = json!({"mime_type": "audio/mpeg"});
+        assert!(Enclosure::parse_from(&json).is_none());
     }
 
     #[test]

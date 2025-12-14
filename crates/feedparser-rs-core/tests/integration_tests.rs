@@ -1,4 +1,4 @@
-use feedparser_rs_core::{FeedVersion, detect_format, parse};
+use feedparser_rs_core::{detect_format, parse, FeedVersion};
 
 /// Helper function to load test fixtures
 fn load_fixture(path: &str) -> Vec<u8> {
@@ -133,4 +133,46 @@ fn test_capacity_constructors() {
     assert!(entry.content.capacity() >= 1);
     assert!(entry.authors.capacity() >= 1);
     assert!(entry.tags.capacity() >= 3);
+}
+
+#[test]
+fn test_parse_json_feed_basic() {
+    let json = load_fixture("json/basic-1.1.json");
+    let result = parse(&json);
+
+    assert!(result.is_ok(), "Failed to parse JSON Feed fixture");
+    let feed = result.unwrap();
+
+    assert_eq!(feed.version, FeedVersion::JsonFeed11);
+    assert!(!feed.bozo);
+    assert_eq!(feed.feed.title.as_deref(), Some("Example JSON Feed"));
+    assert_eq!(feed.entries.len(), 1);
+    assert_eq!(feed.entries[0].id.as_deref(), Some("1"));
+    assert_eq!(feed.entries[0].title.as_deref(), Some("First Post"));
+}
+
+#[test]
+fn test_parse_json_feed_10() {
+    let json = load_fixture("json/basic-1.0.json");
+    let result = parse(&json);
+
+    assert!(result.is_ok());
+    let feed = result.unwrap();
+
+    assert_eq!(feed.version, FeedVersion::JsonFeed10);
+    assert!(!feed.bozo);
+}
+
+#[test]
+fn test_parse_json_feed_minimal() {
+    let json = load_fixture("json/minimal.json");
+    let result = parse(&json);
+
+    assert!(result.is_ok());
+    let feed = result.unwrap();
+
+    assert_eq!(feed.version, FeedVersion::JsonFeed11);
+    assert!(!feed.bozo);
+    assert_eq!(feed.feed.title.as_deref(), Some("Minimal Feed"));
+    assert_eq!(feed.entries.len(), 0);
 }

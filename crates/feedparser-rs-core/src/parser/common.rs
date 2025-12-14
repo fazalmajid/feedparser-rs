@@ -21,6 +21,8 @@ pub const TEXT_BUFFER_CAPACITY: usize = 256;
 /// Context for parsing operations
 ///
 /// Bundles together common parsing state to reduce function parameter count.
+/// Future use: Will be adopted when refactoring parsers to reduce parameter passing
+#[allow(dead_code)]
 pub struct ParseContext<'a> {
     /// XML reader
     pub reader: Reader<&'a [u8]>,
@@ -88,7 +90,9 @@ pub fn init_feed(version: FeedVersion, max_entries: usize) -> ParsedFeed {
 /// Check nesting depth and return error if exceeded
 ///
 /// This is a standalone helper for parsers that don't use ParseContext.
+/// Future use: Will be used when ParseContext is adopted project-wide
 #[inline]
+#[allow(dead_code)]
 pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
     if depth > max_depth {
         return Err(FeedError::InvalidFormat(format!(

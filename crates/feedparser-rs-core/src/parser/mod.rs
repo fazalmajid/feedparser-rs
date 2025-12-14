@@ -1,6 +1,7 @@
 pub mod atom;
 mod common;
 mod detect;
+pub mod json;
 pub mod rss;
 
 use crate::{error::Result, types::ParsedFeed};
@@ -74,10 +75,10 @@ pub fn parse_with_limits(data: &[u8], limits: crate::ParserLimits) -> Result<Par
             "RSS 1.0 not yet supported (Phase 3)".to_string(),
         )),
 
-        // JSON Feed - TODO: Phase 3
-        FeedVersion::JsonFeed10 | FeedVersion::JsonFeed11 => Err(FeedError::InvalidFormat(
-            "JSON Feed not yet supported (Phase 3)".to_string(),
-        )),
+        // JSON Feed
+        FeedVersion::JsonFeed10 | FeedVersion::JsonFeed11 => {
+            json::parse_json_feed_with_limits(data, limits)
+        }
 
         // Unknown format - try RSS first (most common)
         FeedVersion::Unknown => {

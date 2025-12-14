@@ -14,16 +14,30 @@ const DATE_FORMATS: &[&str] = &[
     "%Y-%m-%dT%H:%M:%S",       // 2024-12-14T10:30:45 (no timezone)
     "%Y-%m-%d %H:%M:%S",       // 2024-12-14 10:30:45
     "%Y-%m-%d",                // 2024-12-14
+    // W3C Date-Time variants
+    "%Y-%m-%d %H:%M:%S%:z", // 2024-12-14 10:30:45+00:00
+    "%Y/%m/%d %H:%M:%S",    // 2024/12/14 10:30:45
+    "%Y/%m/%d",             // 2024/12/14
+    // RFC 822 variants (RSS pubDate)
+    "%d %b %Y %H:%M:%S", // 14 Dec 2024 10:30:45
+    "%d %b %Y",          // 14 Dec 2024
+    "%d %B %Y %H:%M:%S", // 14 December 2024 10:30:45
+    "%d %B %Y",          // 14 December 2024
     // US date formats
     "%B %d, %Y %H:%M:%S", // December 14, 2024 10:30:45
     "%B %d, %Y",          // December 14, 2024
+    "%b %d, %Y %H:%M:%S", // Dec 14, 2024 10:30:45
     "%b %d, %Y",          // Dec 14, 2024
     "%m/%d/%Y %H:%M:%S",  // 12/14/2024 10:30:45
     "%m/%d/%Y",           // 12/14/2024
+    "%m-%d-%Y",           // 12-14-2024
     // EU date formats
     "%d.%m.%Y %H:%M:%S", // 14.12.2024 10:30:45
     "%d.%m.%Y",          // 14.12.2024
+    "%d/%m/%Y %H:%M:%S", // 14/12/2024 10:30:45
     "%d/%m/%Y",          // 14/12/2024
+    "%d-%b-%Y",          // 14-Dec-2024
+    "%d-%B-%Y",          // 14-December-2024
 ];
 
 /// Parse date from string, trying multiple formats
@@ -197,5 +211,75 @@ mod tests {
     fn test_eu_date_dot_format() {
         let dt = parse_date("14.12.2024");
         assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_rfc822_without_day() {
+        let dt = parse_date("14 Dec 2024");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_rfc822_long_month() {
+        let dt = parse_date("14 December 2024");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_year_slash_format() {
+        let dt = parse_date("2024/12/14");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_dash_month_format() {
+        let dt = parse_date("14-Dec-2024");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_us_dash_format() {
+        let dt = parse_date("12-14-2024");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_eu_slash_with_time() {
+        let dt = parse_date("14/12/2024 10:30:45");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_multiple_formats_dont_panic() {
+        let dates = vec![
+            "2024-12-14T10:30:00Z",
+            "Sat, 14 Dec 2024 10:30:00 GMT",
+            "14 Dec 2024",
+            "December 14, 2024",
+            "12/14/2024",
+            "14.12.2024",
+            "2024/12/14",
+            "14-Dec-2024",
+            "not a date",
+            "",
+            "2024",
+            "12/2024",
+        ];
+
+        for date_str in dates {
+            let _ = parse_date(date_str);
+        }
+    }
+
+    #[test]
+    fn test_edge_case_leap_year() {
+        let dt = parse_date("2024-02-29");
+        assert!(dt.is_some());
+    }
+
+    #[test]
+    fn test_edge_case_invalid_date() {
+        let dt = parse_date("2023-02-29");
+        assert!(dt.is_none());
     }
 }

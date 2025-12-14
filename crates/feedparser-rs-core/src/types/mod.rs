@@ -9,5 +9,5 @@ pub use common::{
 };
 pub use entry::Entry;
 pub use feed::{FeedMeta, ParsedFeed};
-pub use generics::{DetailedField, FromAttributes, LimitedCollectionExt};
+pub use generics::{FromAttributes, LimitedCollectionExt, ParseFrom};
 pub use version::FeedVersion;

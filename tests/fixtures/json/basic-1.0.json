@@ -1,0 +1,13 @@
+{
+  "version": "https://jsonfeed.org/version/1",
+  "title": "Example JSON Feed 1.0",
+  "home_page_url": "https://example.org/",
+  "items": [
+    {
+      "id": "1",
+      "url": "https://example.org/posts/1",
+      "title": "First Post",
+      "content_html": "<p>This is the first post.</p>"
+    }
+  ]
+}

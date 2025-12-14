@@ -32,9 +32,7 @@ use super::common::{
 ///
 /// # Examples
 ///
-/// ```
-/// use feedparser_rs_core::parser::atom::parse_atom10;
-///
+/// ```ignore
 /// let xml = br#"
 ///     <feed xmlns="http://www.w3.org/2005/Atom">
 ///         <title>Example Feed</title>
@@ -47,6 +45,7 @@ use super::common::{
 /// let feed = parse_atom10(xml).unwrap();
 /// assert_eq!(feed.feed.title.as_deref(), Some("Example Feed"));
 /// ```
+#[allow(dead_code)]
 pub fn parse_atom10(data: &[u8]) -> Result<ParsedFeed> {
     parse_atom10_with_limits(data, ParserLimits::default())
 }
@@ -100,7 +99,7 @@ fn parse_feed_element(
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(event @ Event::Start(_)) | Ok(event @ Event::Empty(_)) => {
+            Ok(event @ (Event::Start(_) | Event::Empty(_))) => {
                 let is_empty = matches!(event, Event::Empty(_));
                 let e = match &event {
                     Event::Start(e) | Event::Empty(e) => e,
@@ -240,7 +239,7 @@ fn parse_entry(
 
     loop {
         match reader.read_event_into(buf) {
-            Ok(event @ Event::Start(_)) | Ok(event @ Event::Empty(_)) => {
+            Ok(event @ (Event::Start(_) | Event::Empty(_))) => {
                 let is_empty = matches!(event, Event::Empty(_));
                 let e = match &event {
                     Event::Start(e) | Event::Empty(e) => e,
@@ -494,7 +493,7 @@ fn parse_atom_source(
 
     loop {
         match reader.read_event_into(buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(

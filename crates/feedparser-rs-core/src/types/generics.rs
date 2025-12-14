@@ -11,6 +11,8 @@ use std::fmt::Debug;
 /// and an optional detailed struct with additional metadata. This generic wrapper
 /// captures that pattern.
 ///
+/// Future use: Planned for Phase 4+ when adding advanced metadata support
+///
 /// # Type Parameters
 ///
 /// * `V` - The simple value type (usually `String`)
@@ -31,6 +33,7 @@ use std::fmt::Debug;
 /// assert_eq!(title.detail(), Some(&"extra info"));
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct DetailedField<V, D> {
     value: V,
     detail: Option<D>,
@@ -132,7 +135,7 @@ impl<V, D> From<(V, D)> for DetailedField<V, D> {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::types::generics::LimitedCollectionExt;
+/// use feedparser_rs_core::types::LimitedCollectionExt;
 ///
 /// let mut vec = Vec::new();
 /// assert!(vec.try_push_limited("first", 2));
@@ -170,6 +173,7 @@ impl<T> LimitedCollectionExt<T> for Vec<T> {
     }
 
     #[inline]
+    #[allow(dead_code)]
     fn remaining_capacity(&self, limit: usize) -> usize {
         limit.saturating_sub(self.len())
     }
@@ -194,6 +198,38 @@ pub trait FromAttributes: Sized {
     fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
     where
         I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>;
+}
+
+/// Generic trait for parsing types from various sources using GAT
+///
+/// This trait provides a unified interface for constructing types from
+/// different data sources (JSON values, XML elements, etc.) using
+/// Generic Associated Types (GAT) for flexible lifetime handling.
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs_core::types::generics::ParseFrom;
+/// use feedparser_rs_core::types::Person;
+/// use serde_json::json;
+///
+/// let json = json!({"name": "John Doe", "url": "https://example.com"});
+/// let person = Person::parse_from(&json);
+/// assert!(person.is_some());
+/// assert_eq!(person.unwrap().name.as_deref(), Some("John Doe"));
+/// ```
+pub trait ParseFrom<Source>: Sized {
+    /// Parse from the given source
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source data to parse from
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Self)` - Successfully parsed instance
+    /// * `None` - Failed to parse (missing required fields, wrong type, etc.)
+    fn parse_from(source: Source) -> Option<Self>;
 }
 
 #[cfg(test)]

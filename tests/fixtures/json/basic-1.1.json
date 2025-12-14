@@ -1,0 +1,32 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Example JSON Feed",
+  "home_page_url": "https://example.org/",
+  "feed_url": "https://example.org/feed.json",
+  "description": "An example JSON Feed",
+  "icon": "https://example.org/icon.png",
+  "favicon": "https://example.org/favicon.ico",
+  "authors": [
+    {
+      "name": "John Doe",
+      "url": "https://example.org/authors/john"
+    }
+  ],
+  "language": "en-US",
+  "items": [
+    {
+      "id": "1",
+      "url": "https://example.org/posts/1",
+      "title": "First Post",
+      "content_html": "<p>This is the first post.</p>",
+      "date_published": "2024-01-01T10:00:00Z",
+      "date_modified": "2024-01-01T12:00:00Z",
+      "authors": [
+        {
+          "name": "John Doe"
+        }
+      ],
+      "tags": ["test", "example"]
+    }
+  ]
+}

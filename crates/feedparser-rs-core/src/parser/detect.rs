@@ -97,7 +97,7 @@ fn detect_xml_format(data: &[u8]) -> FeedVersion {
     // Read events until we find the root element
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
                 let name = e.local_name();
 
                 match name.as_ref() {

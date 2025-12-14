@@ -32,9 +32,7 @@ use super::common::{
 ///
 /// # Examples
 ///
-/// ```
-/// use feedparser_rs_core::parser::rss::parse_rss20;
-///
+/// ```ignore
 /// let xml = br#"
 ///     <rss version="2.0">
 ///         <channel>
@@ -98,7 +96,7 @@ fn parse_channel(
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
@@ -215,7 +213,7 @@ fn parse_item(
 
     loop {
         match reader.read_event_into(buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(

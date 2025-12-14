@@ -42,15 +42,25 @@ mod compat;
 mod error;
 mod limits;
 mod parser;
-mod types;
-mod util;
+
+/// Type definitions for feed data structures
+///
+/// This module contains all the data types used to represent parsed feeds,
+/// including the main `ParsedFeed` struct and related types.
+pub mod types;
+
+/// Utility functions for feed parsing
+///
+/// This module provides helper functions for date parsing, HTML sanitization,
+/// and encoding detection that are useful for feed processing.
+pub mod util;
 
 pub use error::{FeedError, Result};
 pub use limits::{LimitError, ParserLimits};
 pub use parser::{detect_format, parse, parse_with_limits};
 pub use types::{
-    Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, Link, ParsedFeed, Person,
-    Source, Tag, TextConstruct, TextType,
+    Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, LimitedCollectionExt,
+    Link, ParsedFeed, Person, Source, Tag, TextConstruct, TextType,
 };
 
 #[cfg(test)]
