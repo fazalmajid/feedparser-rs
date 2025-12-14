@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Feed with Invalid Dates</title>
+    <link>http://example.com/invalid-dates</link>
+    <description>This feed contains various invalid date formats</description>
+    <lastBuildDate>Invalid Date Format</lastBuildDate>
+
+    <item>
+      <title>Item with Invalid pubDate</title>
+      <link>http://example.com/item1</link>
+      <description>This item has a completely invalid date</description>
+      <pubDate>Not a date at all!</pubDate>
+      <guid>http://example.com/item1</guid>
+    </item>
+
+    <item>
+      <title>Item with Malformed Date</title>
+      <link>http://example.com/item2</link>
+      <description>This item has a malformed date</description>
+      <pubDate>2024-13-45 99:99:99</pubDate>
+      <guid>http://example.com/item2</guid>
+    </item>
+
+    <item>
+      <title>Item with Empty Date</title>
+      <link>http://example.com/item3</link>
+      <description>This item has an empty date tag</description>
+      <pubDate></pubDate>
+      <guid>http://example.com/item3</guid>
+    </item>
+
+    <item>
+      <title>Item with Valid Date for Comparison</title>
+      <link>http://example.com/item4</link>
+      <description>This one has a valid date for comparison</description>
+      <pubDate>Sat, 14 Dec 2024 10:00:00 +0000</pubDate>
+      <guid>http://example.com/item4</guid>
+    </item>
+  </channel>
+</rss>

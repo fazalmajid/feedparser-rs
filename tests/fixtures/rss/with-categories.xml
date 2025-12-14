@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Tech News Feed</title>
+    <link>http://example.com/tech</link>
+    <description>Latest technology news with categories</description>
+    <language>en-us</language>
+    <category>Technology</category>
+    <category domain="http://example.com/topics">Programming</category>
+
+    <item>
+      <title>New Rust Release Announced</title>
+      <link>http://example.com/tech/rust-release</link>
+      <description>Rust 1.85 brings exciting new features</description>
+      <pubDate>Sat, 14 Dec 2024 09:00:00 +0000</pubDate>
+      <guid>http://example.com/tech/rust-release</guid>
+      <category>Programming Languages</category>
+      <category>Rust</category>
+      <category domain="http://example.com/topics">Software Development</category>
+    </item>
+
+    <item>
+      <title>WebAssembly Performance Tips</title>
+      <link>http://example.com/tech/wasm-tips</link>
+      <description>How to optimize WebAssembly applications</description>
+      <pubDate>Sat, 14 Dec 2024 11:00:00 +0000</pubDate>
+      <guid>http://example.com/tech/wasm-tips</guid>
+      <category>WebAssembly</category>
+      <category>Performance</category>
+      <category>Web Development</category>
+    </item>
+  </channel>
+</rss>

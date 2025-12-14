@@ -1,0 +1,15 @@
+/target/
+**/*.rs.bk
+*.pyo
+*.pyc
+__pycache__/
+.pytest_cache/
+*.so
+*.dylib
+*.dll
+.DS_Store
+.venv/
+venv/
+node_modules/
+*.node
+.local/

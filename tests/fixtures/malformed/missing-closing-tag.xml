@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Malformed Feed - Missing Closing Tag</title>
+    <link>http://example.com/malformed</link>
+    <description>This feed is missing the closing channel tag</description>
+
+    <item>
+      <title>First Item</title>
+      <link>http://example.com/item1</link>
+      <description>This item is complete</description>
+      <pubDate>Sat, 14 Dec 2024 10:00:00 +0000</pubDate>
+    </item>
+
+    <item>
+      <title>Second Item</title>
+      <link>http://example.com/item2</link>
+      <description>This item is also complete
+      <!-- Missing closing </description> tag -->
+      <pubDate>Sat, 14 Dec 2024 11:00:00 +0000</pubDate>
+    </item>
+  <!-- Missing </channel> closing tag -->
+</rss>
