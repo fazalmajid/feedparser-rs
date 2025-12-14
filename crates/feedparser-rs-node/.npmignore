@@ -1,0 +1,49 @@
+# Source files (not needed in published package)
+src/
+Cargo.toml
+Cargo.lock
+build.rs
+
+# Development files
+__test__/
+*.spec.mjs
+*.spec.js
+*.test.mjs
+*.test.js
+
+# Build artifacts (will be included via package.json files)
+target/
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Rust files
+*.rs.bk
+
+# npm files
+npm-debug.log*
+.npmrc
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation source (README is included)
+docs/
+*.md
+!README.md
+
+# TypeScript source maps
+*.map

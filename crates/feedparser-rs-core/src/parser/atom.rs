@@ -122,15 +122,17 @@ fn parse_feed_element(
                         feed.feed.title_detail = Some(text);
                     }
                     b"link" => {
-                        if let Some(link) =
-                            Link::from_attributes(element.attributes().flatten(), limits.max_attribute_length)
-                        {
-                            if feed.feed.link.is_none()
-                                && link.rel.as_deref() == Some("alternate")
+                        if let Some(link) = Link::from_attributes(
+                            element.attributes().flatten(),
+                            limits.max_attribute_length,
+                        ) {
+                            if feed.feed.link.is_none() && link.rel.as_deref() == Some("alternate")
                             {
                                 feed.feed.link = Some(link.href.clone());
                             }
-                            feed.feed.links.try_push_limited(link, limits.max_links_per_feed);
+                            feed.feed
+                                .links
+                                .try_push_limited(link, limits.max_links_per_feed);
                         }
                         if !is_empty {
                             skip_to_end(reader, &mut buf, b"link")?;
@@ -154,7 +156,9 @@ fn parse_feed_element(
                                 feed.feed.author = person.name.clone();
                                 feed.feed.author_detail = Some(person.clone());
                             }
-                            feed.feed.authors.try_push_limited(person, limits.max_authors);
+                            feed.feed
+                                .authors
+                                .try_push_limited(person, limits.max_authors);
                         }
                     }
                     b"contributor" if !is_empty => {
@@ -165,9 +169,10 @@ fn parse_feed_element(
                         }
                     }
                     b"category" => {
-                        if let Some(tag) =
-                            Tag::from_attributes(element.attributes().flatten(), limits.max_attribute_length)
-                        {
+                        if let Some(tag) = Tag::from_attributes(
+                            element.attributes().flatten(),
+                            limits.max_attribute_length,
+                        ) {
                             feed.feed.tags.try_push_limited(tag, limits.max_tags);
                         }
                         if !is_empty {
@@ -262,14 +267,16 @@ fn parse_entry(
                         entry.title_detail = Some(text);
                     }
                     b"link" => {
-                        if let Some(link) =
-                            Link::from_attributes(element.attributes().flatten(), limits.max_attribute_length)
-                        {
-                            if entry.link.is_none() && link.rel.as_deref() == Some("alternate")
-                            {
+                        if let Some(link) = Link::from_attributes(
+                            element.attributes().flatten(),
+                            limits.max_attribute_length,
+                        ) {
+                            if entry.link.is_none() && link.rel.as_deref() == Some("alternate") {
                                 entry.link = Some(link.href.clone());
                             }
-                            entry.links.try_push_limited(link, limits.max_links_per_entry);
+                            entry
+                                .links
+                                .try_push_limited(link, limits.max_links_per_entry);
                         }
                         if !is_empty {
                             skip_to_end(reader, buf, b"link")?;
@@ -314,9 +321,10 @@ fn parse_entry(
                         }
                     }
                     b"category" => {
-                        if let Some(tag) =
-                            Tag::from_attributes(element.attributes().flatten(), limits.max_attribute_length)
-                        {
+                        if let Some(tag) = Tag::from_attributes(
+                            element.attributes().flatten(),
+                            limits.max_attribute_length,
+                        ) {
                             entry.tags.try_push_limited(tag, limits.max_tags);
                         }
                         if !is_empty {
@@ -506,9 +514,10 @@ fn parse_atom_source(
                 match element.local_name().as_ref() {
                     b"title" => title = Some(read_text(reader, buf, limits)?),
                     b"link" => {
-                        if let Some(l) =
-                            Link::from_attributes(element.attributes().flatten(), limits.max_attribute_length)
-                        {
+                        if let Some(l) = Link::from_attributes(
+                            element.attributes().flatten(),
+                            limits.max_attribute_length,
+                        ) {
                             if link.is_none() {
                                 link = Some(l.href);
                             }

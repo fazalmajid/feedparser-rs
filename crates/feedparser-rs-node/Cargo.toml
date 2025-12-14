@@ -1,0 +1,21 @@
+[package]
+name = "feedparser-rs-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false  # Published via npm, not crates.io
+description = "Node.js bindings for feedparser-rs-core"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+feedparser-rs-core = { path = "../feedparser-rs-core" }
+napi = { workspace = true, features = ["napi9", "error_anyhow"] }
+napi-derive = { workspace = true }
+
+[build-dependencies]
+napi-build = "2.1"

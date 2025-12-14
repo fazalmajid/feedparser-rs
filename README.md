@@ -18,7 +18,13 @@ High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bin
 
 ## Status
 
-🚧 **Work in Progress** - Phase 1 (Foundation) complete
+🚧 **Work in Progress** - Phase 4 (Node.js bindings + CI/CD) complete
+
+[![CI](https://github.com/bug-ops/feedparser-rs/workflows/CI/badge.svg)](https://github.com/bug-ops/feedparser-rs/actions)
+[![Crates.io](https://img.shields.io/crates/v/feedparser-rs-core.svg)](https://crates.io/crates/feedparser-rs-core)
+[![npm](https://img.shields.io/npm/v/feedparser-rs.svg)](https://www.npmjs.com/package/feedparser-rs)
+[![Documentation](https://docs.rs/feedparser-rs-core/badge.svg)](https://docs.rs/feedparser-rs-core)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
 ## Installation
 
@@ -35,10 +41,14 @@ feedparser-rs-core = "0.1"
 pip install feedparser-rs
 ```
 
-### Node.js (Coming in Phase 6)
+### Node.js
 
 ```bash
 npm install feedparser-rs
+# or
+yarn add feedparser-rs
+# or
+pnpm add feedparser-rs
 ```
 
 ## Usage
@@ -71,6 +81,19 @@ d = feedparser_rs.parse(b'<rss>...</rss>')
 print(d.version)  # 'rss20'
 print(d.feed.title)
 ```
+
+### Node.js
+
+```javascript
+import { parse } from 'feedparser-rs';
+
+const feed = parse('<rss version="2.0">...</rss>');
+console.log(feed.version);  // 'rss20'
+console.log(feed.feed.title);
+console.log(feed.entries.length);
+```
+
+See [crates/feedparser-rs-node/README.md](crates/feedparser-rs-node/README.md) for full Node.js API documentation.
 
 ## Development
 

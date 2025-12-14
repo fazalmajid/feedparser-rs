@@ -1,4 +1,4 @@
-use feedparser_rs_core::{detect_format, parse, FeedVersion};
+use feedparser_rs_core::{FeedVersion, detect_format, parse};
 
 /// Helper function to load test fixtures
 fn load_fixture(path: &str) -> Vec<u8> {

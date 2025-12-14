@@ -12,8 +12,7 @@ use crate::{
 use quick_xml::{Reader, events::Event};
 
 use super::common::{
-    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, init_feed, read_text,
-    skip_element,
+    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, init_feed, read_text, skip_element,
 };
 
 /// Parse RSS 2.0 feed from raw bytes

@@ -1,0 +1,54 @@
+{
+  "name": "feedparser-rs",
+  "version": "0.1.0",
+  "description": "High-performance RSS/Atom/JSON Feed parser (drop-in feedparser replacement)",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bug-ops/feedparser-rs.git"
+  },
+  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "rss",
+    "atom",
+    "feed",
+    "parser",
+    "feedparser",
+    "json-feed",
+    "rust",
+    "napi-rs"
+  ],
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "napi": {
+    "binaryName": "feedparser-rs",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": ">= 18"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "test": "node --test __test__/index.spec.mjs",
+    "prepublishOnly": "napi prepublish -t npm"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.5"
+  },
+  "optionalDependencies": {
+    "feedparser-rs-darwin-arm64": "0.1.0",
+    "feedparser-rs-darwin-x64": "0.1.0",
+    "feedparser-rs-linux-x64-gnu": "0.1.0",
+    "feedparser-rs-win32-x64-msvc": "0.1.0"
+  }
+}

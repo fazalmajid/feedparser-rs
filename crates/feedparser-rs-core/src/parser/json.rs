@@ -3,13 +3,13 @@
 //! Specification: <https://www.jsonfeed.org/version/1.1/>
 
 use crate::{
+    ParserLimits,
     error::{FeedError, Result},
     types::{
         Content, Enclosure, Entry, FeedMeta, FeedVersion, Image, LimitedCollectionExt, Link,
-        ParseFrom, Person, Tag, TextConstruct, ParsedFeed,
+        ParseFrom, ParsedFeed, Person, Tag, TextConstruct,
     },
     util::date::parse_date,
-    ParserLimits,
 };
 use serde_json::Value;
 
@@ -112,7 +112,13 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
         });
     }
 
-    parse_authors(json, &mut feed.author, &mut feed.author_detail, &mut feed.authors, limits);
+    parse_authors(
+        json,
+        &mut feed.author,
+        &mut feed.author_detail,
+        &mut feed.authors,
+        limits,
+    );
 
     if let Some(language) = json.get("language").and_then(|v| v.as_str()) {
         feed.language = Some(language.to_string());
@@ -134,11 +140,15 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(url) = json.get("url").and_then(|v| v.as_str()) {
         entry.link = Some(url.to_string());
-        let _ = entry.links.try_push_limited(Link::alternate(url), limits.max_entries);
+        let _ = entry
+            .links
+            .try_push_limited(Link::alternate(url), limits.max_entries);
     }
 
     if let Some(external_url) = json.get("external_url").and_then(|v| v.as_str()) {
-        let _ = entry.links.try_push_limited(Link::related(external_url), limits.max_entries);
+        let _ = entry
+            .links
+            .try_push_limited(Link::related(external_url), limits.max_entries);
     }
 
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
@@ -149,12 +159,16 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(content_html) = json.get("content_html").and_then(|v| v.as_str()) {
         let text = truncate_text(content_html, limits.max_text_length);
-        let _ = entry.content.try_push_limited(Content::html(text), limits.max_entries);
+        let _ = entry
+            .content
+            .try_push_limited(Content::html(text), limits.max_entries);
     }
 
     if let Some(content_text) = json.get("content_text").and_then(|v| v.as_str()) {
         let text = truncate_text(content_text, limits.max_text_length);
-        let _ = entry.content.try_push_limited(Content::plain(text), limits.max_entries);
+        let _ = entry
+            .content
+            .try_push_limited(Content::plain(text), limits.max_entries);
     }
 
     if let Some(summary) = json.get("summary").and_then(|v| v.as_str()) {
@@ -178,12 +192,20 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
         entry.updated = parse_date(date_str);
     }
 
-    parse_authors(json, &mut entry.author, &mut entry.author_detail, &mut entry.authors, limits);
+    parse_authors(
+        json,
+        &mut entry.author,
+        &mut entry.author_detail,
+        &mut entry.authors,
+        limits,
+    );
 
     if let Some(tags) = json.get("tags").and_then(|v| v.as_array()) {
         for tag_val in tags {
             if let Some(tag_str) = tag_val.as_str() {
-                let _ = entry.tags.try_push_limited(Tag::new(tag_str), limits.max_entries);
+                let _ = entry
+                    .tags
+                    .try_push_limited(Tag::new(tag_str), limits.max_entries);
             }
         }
     }
@@ -200,7 +222,9 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
     if let Some(attachments) = json.get("attachments").and_then(|v| v.as_array()) {
         for attachment in attachments {
             if let Some(enclosure) = Enclosure::parse_from(attachment) {
-                let _ = entry.enclosures.try_push_limited(enclosure, limits.max_entries);
+                let _ = entry
+                    .enclosures
+                    .try_push_limited(enclosure, limits.max_entries);
             }
         }
     }
@@ -292,7 +316,10 @@ mod tests {
         assert_eq!(feed.entries.len(), 1);
         assert_eq!(feed.entries[0].id.as_deref(), Some("1"));
         assert_eq!(feed.entries[0].title.as_deref(), Some("First Post"));
-        assert_eq!(feed.entries[0].link.as_deref(), Some("https://example.com/1"));
+        assert_eq!(
+            feed.entries[0].link.as_deref(),
+            Some("https://example.com/1")
+        );
     }
 
     #[test]
@@ -312,7 +339,10 @@ mod tests {
         assert_eq!(feed.feed.title.as_deref(), Some("Example Feed"));
         assert_eq!(feed.feed.link.as_deref(), Some("https://example.com"));
         assert_eq!(feed.feed.subtitle.as_deref(), Some("Feed description"));
-        assert_eq!(feed.feed.icon.as_deref(), Some("https://example.com/icon.png"));
+        assert_eq!(
+            feed.feed.icon.as_deref(),
+            Some("https://example.com/icon.png")
+        );
         assert_eq!(feed.feed.language.as_deref(), Some("en-US"));
     }
 
@@ -330,7 +360,10 @@ mod tests {
         let feed = parse_json_feed(json).unwrap();
         assert_eq!(feed.feed.author.as_deref(), Some("John Doe"));
         assert_eq!(feed.feed.authors.len(), 1);
-        assert_eq!(feed.feed.authors[0].uri.as_deref(), Some("https://example.com/john"));
+        assert_eq!(
+            feed.feed.authors[0].uri.as_deref(),
+            Some("https://example.com/john")
+        );
     }
 
     #[test]
@@ -391,8 +424,14 @@ mod tests {
 
         let feed = parse_json_feed(json).unwrap();
         assert_eq!(feed.entries[0].enclosures.len(), 1);
-        assert_eq!(feed.entries[0].enclosures[0].url, "https://example.com/file.mp3");
-        assert_eq!(feed.entries[0].enclosures[0].enclosure_type.as_deref(), Some("audio/mpeg"));
+        assert_eq!(
+            feed.entries[0].enclosures[0].url,
+            "https://example.com/file.mp3"
+        );
+        assert_eq!(
+            feed.entries[0].enclosures[0].enclosure_type.as_deref(),
+            Some("audio/mpeg")
+        );
         assert_eq!(feed.entries[0].enclosures[0].length, Some(12345));
     }
 

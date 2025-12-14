@@ -418,7 +418,10 @@ mod tests {
         assert_eq!(link.rel.as_deref(), Some("self"));
         assert_eq!(link.link_type.as_deref(), Some("application/feed+json"));
 
-        let link = Link::enclosure("https://example.com/audio.mp3", Some("audio/mpeg".to_string()));
+        let link = Link::enclosure(
+            "https://example.com/audio.mp3",
+            Some("audio/mpeg".to_string()),
+        );
         assert_eq!(link.rel.as_deref(), Some("enclosure"));
         assert_eq!(link.link_type.as_deref(), Some("audio/mpeg"));
 
