@@ -1,4 +1,8 @@
-#![allow(missing_docs, clippy::if_then_some_else_none, clippy::single_match_else)]
+#![allow(
+    missing_docs,
+    clippy::if_then_some_else_none,
+    clippy::single_match_else
+)]
 
 use feedparser_rs_core::{FeedVersion, detect_format, parse};
 
