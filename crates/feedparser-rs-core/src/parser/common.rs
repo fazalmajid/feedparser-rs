@@ -281,7 +281,7 @@ mod tests {
         reader.config_mut().trim_text(true);
         let mut buf = Vec::new();
         let limits = ParserLimits::default();
-        let mut depth = 1;
+        let depth = 1;
 
         // Skip to after the start tag
         loop {

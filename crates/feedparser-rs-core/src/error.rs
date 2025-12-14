@@ -67,9 +67,14 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_wraps)]
     fn test_result_type() {
-        let result: Result<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
+        fn get_result() -> Result<i32> {
+            Ok(42)
+        }
+        let result = get_result();
+        assert!(result.is_ok());
+        assert_eq!(result.expect("should be ok"), 42);
 
         let error: Result<i32> = Err(FeedError::Unknown("test".to_string()));
         assert!(error.is_err());

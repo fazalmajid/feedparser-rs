@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_detect_atom10_no_xmlns() {
-        let xml = br#"<feed></feed>"#;
+        let xml = br"<feed></feed>";
         assert_eq!(detect_format(xml), FeedVersion::Atom10);
     }
 
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_detect_unknown_xml() {
-        let xml = br#"<unknown></unknown>"#;
+        let xml = br"<unknown></unknown>";
         assert_eq!(detect_format(xml), FeedVersion::Unknown);
     }
 

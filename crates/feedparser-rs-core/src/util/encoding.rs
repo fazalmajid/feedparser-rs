@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_convert_utf8_to_utf8() {
-        let data = "Hello".as_bytes();
+        let data = b"Hello";
         let result = convert_to_utf8(data, "utf-8").unwrap();
         assert_eq!(result, "Hello");
     }

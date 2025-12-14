@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_removes_script() {
-        let html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
+        let html = r"<p>Hello</p><script>alert('XSS')</script>";
         let clean = sanitize_html(html);
         assert!(!clean.contains("script"));
         assert!(clean.contains("Hello"));
