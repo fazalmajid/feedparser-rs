@@ -12,6 +12,7 @@ use crate::{
     util::date::parse_date,
 };
 use serde_json::Value;
+use std::borrow::Cow;
 
 /// Parse JSON Feed with default limits
 pub fn parse_json_feed(data: &[u8]) -> Result<ParsedFeed> {
@@ -76,12 +77,14 @@ pub fn parse_json_feed_with_limits(data: &[u8], limits: ParserLimits) -> Result<
 fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits) {
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        feed.title_detail = Some(TextConstruct::text(&truncated));
-        feed.title = Some(truncated);
+        feed.title_detail = Some(TextConstruct::text(truncated.as_ref()));
+        feed.title = Some(truncated.into_owned());
     }
 
     if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str()) {
-        feed.link = Some(url.to_string());
+        if url.len() <= limits.max_text_length {
+            feed.link = Some(url.to_string());
+        }
     }
 
     if let Some(feed_url) = json.get("feed_url").and_then(|v| v.as_str()) {
@@ -93,23 +96,27 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
 
     if let Some(description) = json.get("description").and_then(|v| v.as_str()) {
         let truncated = truncate_text(description, limits.max_text_length);
-        feed.subtitle_detail = Some(TextConstruct::text(&truncated));
-        feed.subtitle = Some(truncated);
+        feed.subtitle_detail = Some(TextConstruct::text(truncated.as_ref()));
+        feed.subtitle = Some(truncated.into_owned());
     }
 
     if let Some(icon) = json.get("icon").and_then(|v| v.as_str()) {
-        feed.icon = Some(icon.to_string());
+        if icon.len() <= limits.max_text_length {
+            feed.icon = Some(icon.to_string());
+        }
     }
 
     if let Some(favicon) = json.get("favicon").and_then(|v| v.as_str()) {
-        feed.image = Some(Image {
-            url: favicon.to_string(),
-            title: None,
-            link: None,
-            width: None,
-            height: None,
-            description: None,
-        });
+        if favicon.len() <= limits.max_text_length {
+            feed.image = Some(Image {
+                url: favicon.to_string(),
+                title: None,
+                link: None,
+                width: None,
+                height: None,
+                description: None,
+            });
+        }
     }
 
     parse_authors(
@@ -121,7 +128,9 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
     );
 
     if let Some(language) = json.get("language").and_then(|v| v.as_str()) {
-        feed.language = Some(language.to_string());
+        if language.len() <= limits.max_text_length {
+            feed.language = Some(language.to_string());
+        }
     }
 
     if let Some(expired) = json.get("expired").and_then(Value::as_bool) {
@@ -153,28 +162,28 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        entry.title_detail = Some(TextConstruct::text(&truncated));
-        entry.title = Some(truncated);
+        entry.title_detail = Some(TextConstruct::text(truncated.as_ref()));
+        entry.title = Some(truncated.into_owned());
     }
 
     if let Some(content_html) = json.get("content_html").and_then(|v| v.as_str()) {
         let text = truncate_text(content_html, limits.max_text_length);
         let _ = entry
             .content
-            .try_push_limited(Content::html(text), limits.max_entries);
+            .try_push_limited(Content::html(text.into_owned()), limits.max_entries);
     }
 
     if let Some(content_text) = json.get("content_text").and_then(|v| v.as_str()) {
         let text = truncate_text(content_text, limits.max_text_length);
         let _ = entry
             .content
-            .try_push_limited(Content::plain(text), limits.max_entries);
+            .try_push_limited(Content::plain(text.into_owned()), limits.max_entries);
     }
 
     if let Some(summary) = json.get("summary").and_then(|v| v.as_str()) {
         let truncated = truncate_text(summary, limits.max_text_length);
-        entry.summary_detail = Some(TextConstruct::text(&truncated));
-        entry.summary = Some(truncated);
+        entry.summary_detail = Some(TextConstruct::text(truncated.as_ref()));
+        entry.summary = Some(truncated.into_owned());
     }
 
     if let Some(image) = json.get("image").and_then(|v| v.as_str()) {
@@ -259,11 +268,15 @@ fn parse_authors(
     }
 }
 
-fn truncate_text(text: &str, max_length: usize) -> String {
+/// Truncate text to maximum length, avoiding allocation when possible
+///
+/// Returns `Cow::Borrowed` when text is under limit (zero-copy),
+/// `Cow::Owned` when truncation is needed.
+fn truncate_text(text: &str, max_length: usize) -> Cow<'_, str> {
     if text.len() <= max_length {
-        text.to_string()
+        Cow::Borrowed(text)
     } else {
-        text.chars().take(max_length).collect()
+        Cow::Owned(text.chars().take(max_length).collect())
     }
 }
 
@@ -493,5 +506,20 @@ mod tests {
         assert_eq!(truncate_text("hello", 10), "hello");
         assert_eq!(truncate_text("hello world", 5), "hello");
         assert_eq!(truncate_text("", 10), "");
+    }
+
+    #[test]
+    fn test_truncate_avoids_allocation() {
+        // Short text should return Borrowed (no allocation)
+        let short = "hello";
+        let result = truncate_text(short, 100);
+        assert!(matches!(result, Cow::Borrowed(_)));
+        assert_eq!(result, "hello");
+
+        // Long text should return Owned (truncated)
+        let long = "a".repeat(1000);
+        let result = truncate_text(&long, 10);
+        assert!(matches!(result, Cow::Owned(_)));
+        assert_eq!(result.len(), 10);
     }
 }
