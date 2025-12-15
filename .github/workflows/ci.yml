@@ -11,6 +11,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   RUST_BACKTRACE: short
+  RUSTFLAGS: "-D warnings"
   RUSTUP_MAX_RETRIES: 10
 
 # Cancel previous runs on new push
@@ -19,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast checks - run once, fail fast
+  # Fast checks - run first, fail fast
   lint:
     name: Lint (fmt + clippy)
     runs-on: ubuntu-latest
@@ -37,6 +38,14 @@ jobs:
         with:
           components: rustfmt
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -46,19 +55,74 @@ jobs:
       - name: Check formatting
         run: cargo +nightly fmt --all -- --check
 
-      - name: Clippy
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+      - name: Clippy (workspace except Python bindings)
         run: cargo +stable clippy --all-targets --all-features --workspace --exclude feedparser-rs-py -- -D warnings
 
+      - name: Install SARIF tools
+        run: cargo install clippy-sarif sarif-fmt
+
+      - name: Clippy SARIF (for GitHub PR annotations)
+        run: |
+          cargo clippy --all-targets --all-features --workspace \
+            --exclude feedparser-rs-py --message-format=json -- -D warnings | \
+          clippy-sarif | tee clippy-results.sarif | sarif-fmt
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: clippy-results.sarif
+          wait-for-processing: true
+
       - name: Check documentation
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
         run: cargo doc --no-deps --all-features --workspace --exclude feedparser-rs-py
         env:
           RUSTDOCFLAGS: "-D warnings"
 
+      - name: sccache stats
+        run: sccache --show-stats
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "security"
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Scan for vulnerabilities
+        run: cargo deny check advisories
+
+      - name: Check licenses
+        run: cargo deny check licenses
+
+      - name: Check bans
+        run: cargo deny check bans
+
+      - name: Check sources
+        run: cargo deny check sources
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Audit dependencies
+        run: cargo audit
+
   # Cross-platform Rust tests
   test-rust:
     name: Test Rust (${{ matrix.os }})
+    needs: [lint]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -72,6 +136,14 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
@@ -81,34 +153,115 @@ jobs:
           shared-key: "test-rust-${{ matrix.os }}"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
-        run: cargo build --all-features --workspace --exclude feedparser-rs-py
-
       - name: Run tests
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
         run: cargo nextest run --all-features --no-fail-fast --workspace --exclude feedparser-rs-py
 
       - name: Run doctests
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
         run: cargo test --doc --all-features --workspace --exclude feedparser-rs-py
 
-  # Node.js bindings tests
-  test-node:
-    name: Test Node.js (${{ matrix.os }} - Node ${{ matrix.node }})
+      - name: sccache stats
+        run: sccache --show-stats
+
+  # Python bindings tests
+  test-python:
+    name: Test Python (${{ matrix.os }} - Py${{ matrix.python }})
+    needs: [lint]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [20, 22]
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        exclude:
+          # Reduce matrix size - test all versions on Linux only
+          - os: macos-latest
+            python: '3.9'
+          - os: macos-latest
+            python: '3.10'
+          - os: macos-latest
+            python: '3.11'
+          - os: windows-latest
+            python: '3.9'
+          - os: windows-latest
+            python: '3.10'
+          - os: windows-latest
+            python: '3.11'
 
     steps:
       - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "test-python-${{ matrix.os }}"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          workspaces: crates/feedparser-rs-py
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: 'pip'
+
+      - name: Install maturin and pytest
+        run: pip install maturin pytest
+
+      - name: Build Python wheel
+        working-directory: crates/feedparser-rs-py
+        run: maturin develop --release
+
+      - name: Run Python tests
+        working-directory: crates/feedparser-rs-py
+        run: pytest tests/ -v
+        if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
+
+      - name: Test Python import
+        run: python -c "import feedparser_rs; print(f'feedparser-rs version loaded successfully')"
+
+      - name: sccache stats
+        run: sccache --show-stats
+
+  # Node.js bindings tests
+  test-node:
+    name: Test Node.js (${{ matrix.os }} - Node ${{ matrix.node }})
+    needs: [lint]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20']
+        include:
+          # Test Node 22 only on Linux
+          - os: ubuntu-latest
+            node: '22'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -136,9 +289,13 @@ jobs:
         working-directory: crates/feedparser-rs-node
         run: npm test
 
-  # Code coverage (Linux only)
-  coverage:
-    name: Code Coverage
+      - name: sccache stats
+        run: sccache --show-stats
+
+  # Rust code coverage
+  coverage-rust:
+    name: Rust Code Coverage
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -146,29 +303,94 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "coverage"
+          shared-key: "coverage-rust"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@cargo-tarpaulin
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Generate coverage
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
-        run: cargo tarpaulin --out xml --all-features --engine llvm --workspace --exclude feedparser-rs-py
+        run: |
+          cargo llvm-cov --all-features --workspace --exclude feedparser-rs-py \
+            --lcov --output-path lcov.info nextest
 
-      - name: Upload coverage to Codecov
+      - name: Upload to codecov
         uses: codecov/codecov-action@v5
         with:
-          files: ./cobertura.xml
-          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: true
+          flags: rust-core
+          verbose: true
+
+  # Python code coverage
+  coverage-python:
+    name: Python Code Coverage
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "coverage-python"
+          workspaces: crates/feedparser-rs-py
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install maturin pytest pytest-cov
+
+      - name: Build Python module
+        working-directory: crates/feedparser-rs-py
+        run: maturin develop --release
+
+      - name: Run tests with coverage
+        working-directory: crates/feedparser-rs-py
+        run: |
+          pytest tests/ --cov=feedparser_rs --cov-report=xml --cov-report=term
+        continue-on-error: true
+        if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
+
+      - name: Upload Python coverage to codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: crates/feedparser-rs-py/coverage.xml
+          fail_ci_if_error: false
+          flags: python-bindings
+        if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
 
   # MSRV check
   msrv:
     name: Check MSRV (1.88.0)
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -179,28 +401,41 @@ jobs:
         with:
           toolchain: "1.88.0"
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
+      - name: Configure sccache
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "msrv"
 
       - name: Check with MSRV
-        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
         run: cargo +1.88.0 check --all-features --workspace --exclude feedparser-rs-py
+
+      - name: sccache stats
+        run: sccache --show-stats
 
   # All checks passed gate
   ci-success:
     name: CI Success
-    needs: [lint, test-rust, test-node, coverage, msrv]
+    needs: [lint, security, test-rust, test-python, test-node, coverage-rust, coverage-python, msrv]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs
         run: |
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.security.result }}" != "success" ]] || \
              [[ "${{ needs.test-rust.result }}" != "success" ]] || \
+             [[ "${{ needs.test-python.result }}" != "success" ]] || \
              [[ "${{ needs.test-node.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage-rust.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage-python.result }}" != "success" ]] || \
              [[ "${{ needs.msrv.result }}" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
