@@ -7,7 +7,8 @@ use crate::{
     types::{
         Enclosure, Entry, FeedVersion, Image, ItunesCategory, ItunesEntryMeta, ItunesFeedMeta,
         ItunesOwner, Link, MediaContent, MediaThumbnail, ParsedFeed, PodcastFunding, PodcastMeta,
-        Source, Tag, TextConstruct, TextType, parse_duration, parse_explicit,
+        PodcastPerson, PodcastTranscript, Source, Tag, TextConstruct, TextType, parse_duration,
+        parse_explicit,
     },
     util::parse_date,
 };
@@ -200,7 +201,7 @@ fn parse_channel(
                             }
                             true
                         } else if is_itunes_tag(tag, b"category") {
-                            // Parse category inline to avoid borrow conflicts
+                            // Parse category with potential subcategory
                             let mut category_text = String::new();
                             for attr in e.attributes().flatten() {
                                 if attr.key.as_ref() == b"text"
@@ -210,13 +211,75 @@ fn parse_channel(
                                         value.chars().take(limits.max_attribute_length).collect();
                                 }
                             }
+
+                            // Parse potential nested subcategory
+                            // We need to read until we find the closing tag for the parent category
+                            let mut subcategory_text = None;
+                            let mut nesting = 0; // Track category nesting level
+                            loop {
+                                match reader.read_event_into(&mut buf) {
+                                    Ok(Event::Start(sub_e)) => {
+                                        if is_itunes_tag(sub_e.name().as_ref(), b"category") {
+                                            nesting += 1;
+                                            if nesting == 1 {
+                                                // First nested category - this is the subcategory
+                                                for attr in sub_e.attributes().flatten() {
+                                                    if attr.key.as_ref() == b"text"
+                                                        && let Ok(value) = attr.unescape_value()
+                                                    {
+                                                        subcategory_text = Some(
+                                                            value
+                                                                .chars()
+                                                                .take(limits.max_attribute_length)
+                                                                .collect(),
+                                                        );
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Ok(Event::Empty(sub_e)) => {
+                                        if is_itunes_tag(sub_e.name().as_ref(), b"category")
+                                            && subcategory_text.is_none()
+                                        {
+                                            // Self-closing nested category
+                                            for attr in sub_e.attributes().flatten() {
+                                                if attr.key.as_ref() == b"text"
+                                                    && let Ok(value) = attr.unescape_value()
+                                                {
+                                                    subcategory_text = Some(
+                                                        value
+                                                            .chars()
+                                                            .take(limits.max_attribute_length)
+                                                            .collect(),
+                                                    );
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Ok(Event::End(end_e)) => {
+                                        if is_itunes_tag(end_e.name().as_ref(), b"category") {
+                                            if nesting == 0 {
+                                                // End of the parent category element
+                                                break;
+                                            }
+                                            nesting -= 1;
+                                        }
+                                    }
+                                    Ok(Event::Eof) | Err(_) => break,
+                                    _ => {}
+                                }
+                                buf.clear();
+                            }
+
                             let itunes =
                                 feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
                             itunes.categories.push(ItunesCategory {
                                 text: category_text,
-                                subcategory: None,
+                                subcategory: subcategory_text,
                             });
-                            skip_element(reader, &mut buf, limits, *depth)?;
                             true
                         } else if is_itunes_tag(tag, b"explicit") {
                             let text = read_text(reader, &mut buf, limits)?;
@@ -459,13 +522,127 @@ fn parse_item(
                             itunes.episode_type = Some(text);
                             true
                         } else if tag.starts_with(b"podcast:transcript") {
-                            // Podcast 2.0 transcript not stored in Entry for now
-                            skip_element(reader, buf, limits, *depth)?;
+                            // Parse Podcast 2.0 transcript inline
+                            let mut url = String::new();
+                            let mut transcript_type = None;
+                            let mut language = None;
+                            let mut rel = None;
+                            for attr in e.attributes().flatten() {
+                                match attr.key.as_ref() {
+                                    b"url" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            url = value
+                                                .chars()
+                                                .take(limits.max_attribute_length)
+                                                .collect();
+                                        }
+                                    }
+                                    b"type" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            transcript_type = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    b"language" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            language = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    b"rel" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            rel = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            if !url.is_empty() {
+                                entry.podcast_transcripts.push(PodcastTranscript {
+                                    url,
+                                    transcript_type,
+                                    language,
+                                    rel,
+                                });
+                            }
+                            if !is_empty {
+                                skip_element(reader, buf, limits, *depth)?;
+                            }
                             true
                         } else if tag.starts_with(b"podcast:person") {
-                            // Parse person inline to avoid borrow conflicts
-                            // Podcast 2.0 person not stored in Entry for now (no podcast field)
-                            skip_element(reader, buf, limits, *depth)?;
+                            // Parse Podcast 2.0 person inline
+                            let mut role = None;
+                            let mut group = None;
+                            let mut img = None;
+                            let mut href = None;
+                            for attr in e.attributes().flatten() {
+                                match attr.key.as_ref() {
+                                    b"role" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            role = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    b"group" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            group = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    b"img" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            img = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    b"href" => {
+                                        if let Ok(value) = attr.unescape_value() {
+                                            href = Some(
+                                                value
+                                                    .chars()
+                                                    .take(limits.max_attribute_length)
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            let name = read_text(reader, buf, limits)?;
+                            if !name.is_empty() {
+                                entry.podcast_persons.push(PodcastPerson {
+                                    name,
+                                    role,
+                                    group,
+                                    img,
+                                    href,
+                                });
+                            }
                             true
                         } else if let Some(dc_element) = is_dc_tag(tag) {
                             // Dublin Core namespace
