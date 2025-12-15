@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/feedparser-rs-core", "crates/feedparser-rs-node"]
+members = ["crates/feedparser-rs-core", "crates/feedparser-rs-node", "crates/feedparser-rs-py"]
 resolver = "2"
 
 [workspace.package]
