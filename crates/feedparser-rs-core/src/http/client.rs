@@ -276,4 +276,61 @@ mod tests {
         let err_msg = result.err().unwrap().to_string();
         assert!(err_msg.contains("Internal domain TLD not allowed"));
     }
+
+    #[test]
+    fn test_insert_header_valid() {
+        let mut headers = HeaderMap::new();
+        let result = FeedHttpClient::insert_header(
+            &mut headers,
+            USER_AGENT,
+            "TestBot/1.0",
+            "User-Agent",
+        );
+        assert!(result.is_ok());
+        assert_eq!(headers.get(USER_AGENT).unwrap(), "TestBot/1.0");
+    }
+
+    #[test]
+    fn test_insert_header_invalid_value() {
+        let mut headers = HeaderMap::new();
+        // Invalid header value with control characters
+        let result = FeedHttpClient::insert_header(
+            &mut headers,
+            USER_AGENT,
+            "Invalid\nHeader",
+            "User-Agent",
+        );
+        assert!(result.is_err());
+        match result {
+            Err(FeedError::Http { message }) => {
+                assert!(message.contains("Invalid User-Agent"));
+            }
+            _ => panic!("Expected Http error"),
+        }
+    }
+
+    #[test]
+    fn test_insert_header_multiple_headers() {
+        let mut headers = HeaderMap::new();
+
+        FeedHttpClient::insert_header(
+            &mut headers,
+            USER_AGENT,
+            "TestBot/1.0",
+            "User-Agent",
+        )
+        .unwrap();
+
+        FeedHttpClient::insert_header(
+            &mut headers,
+            ACCEPT,
+            "application/xml",
+            "Accept",
+        )
+        .unwrap();
+
+        assert_eq!(headers.len(), 2);
+        assert_eq!(headers.get(USER_AGENT).unwrap(), "TestBot/1.0");
+        assert_eq!(headers.get(ACCEPT).unwrap(), "application/xml");
+    }
 }
