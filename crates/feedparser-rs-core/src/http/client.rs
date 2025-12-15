@@ -280,12 +280,8 @@ mod tests {
     #[test]
     fn test_insert_header_valid() {
         let mut headers = HeaderMap::new();
-        let result = FeedHttpClient::insert_header(
-            &mut headers,
-            USER_AGENT,
-            "TestBot/1.0",
-            "User-Agent",
-        );
+        let result =
+            FeedHttpClient::insert_header(&mut headers, USER_AGENT, "TestBot/1.0", "User-Agent");
         assert!(result.is_ok());
         assert_eq!(headers.get(USER_AGENT).unwrap(), "TestBot/1.0");
     }
@@ -313,21 +309,10 @@ mod tests {
     fn test_insert_header_multiple_headers() {
         let mut headers = HeaderMap::new();
 
-        FeedHttpClient::insert_header(
-            &mut headers,
-            USER_AGENT,
-            "TestBot/1.0",
-            "User-Agent",
-        )
-        .unwrap();
+        FeedHttpClient::insert_header(&mut headers, USER_AGENT, "TestBot/1.0", "User-Agent")
+            .unwrap();
 
-        FeedHttpClient::insert_header(
-            &mut headers,
-            ACCEPT,
-            "application/xml",
-            "Accept",
-        )
-        .unwrap();
+        FeedHttpClient::insert_header(&mut headers, ACCEPT, "application/xml", "Accept").unwrap();
 
         assert_eq!(headers.len(), 2);
         assert_eq!(headers.get(USER_AGENT).unwrap(), "TestBot/1.0");

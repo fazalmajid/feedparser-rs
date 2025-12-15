@@ -5,7 +5,7 @@ use super::{
     podcast::{ItunesFeedMeta, PodcastMeta},
     version::FeedVersion,
 };
-use crate::{error::Result, ParserLimits};
+use crate::{ParserLimits, error::Result};
 use chrono::{DateTime, Utc};
 use quick_xml::Reader;
 use std::collections::HashMap;
