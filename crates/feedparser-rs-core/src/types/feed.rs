@@ -84,6 +84,17 @@ pub struct ParsedFeed {
     pub version: FeedVersion,
     /// XML namespaces (prefix -> URI)
     pub namespaces: HashMap<String, String>,
+    /// HTTP status code (if fetched from URL)
+    pub status: Option<u16>,
+    /// Final URL after redirects (if fetched from URL)
+    pub href: Option<String>,
+    /// `ETag` header from HTTP response
+    pub etag: Option<String>,
+    /// Last-Modified header from HTTP response
+    pub modified: Option<String>,
+    /// HTTP response headers (if fetched from URL)
+    #[cfg(feature = "http")]
+    pub headers: Option<HashMap<String, String>>,
 }
 
 impl ParsedFeed {
