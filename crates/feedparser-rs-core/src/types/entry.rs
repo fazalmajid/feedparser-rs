@@ -1,4 +1,7 @@
-use super::common::{Content, Enclosure, Link, Person, Source, Tag, TextConstruct};
+use super::{
+    common::{Content, Enclosure, Link, Person, Source, Tag, TextConstruct},
+    podcast::ItunesEntryMeta,
+};
 use chrono::{DateTime, Utc};
 
 /// Feed entry/item
@@ -48,6 +51,8 @@ pub struct Entry {
     pub comments: Option<String>,
     /// Source feed reference
     pub source: Option<Source>,
+    /// iTunes episode metadata (if present)
+    pub itunes: Option<ItunesEntryMeta>,
 }
 
 impl Entry {
