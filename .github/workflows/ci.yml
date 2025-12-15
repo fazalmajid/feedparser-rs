@@ -28,6 +28,9 @@ jobs:
     name: Lint (fmt + clippy)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -79,6 +82,8 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -111,6 +116,8 @@ jobs:
     needs: [lint]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -143,6 +150,8 @@ jobs:
     needs: [lint]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -210,6 +219,8 @@ jobs:
     needs: [lint]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -258,6 +269,8 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -298,6 +311,8 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -352,6 +367,8 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -398,6 +415,8 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -420,6 +439,8 @@ jobs:
     needs: [lint, security, test-rust, test-python, test-node, coverage-rust, coverage-python, coverage-node, msrv]
     runs-on: ubuntu-latest
     if: always()
+    permissions:
+      contents: read
     steps:
       - name: Check all jobs
         run: |
