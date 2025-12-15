@@ -50,32 +50,17 @@ jobs:
           shared-key: "lint"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Check formatting
-        run: cargo +nightly fmt --all -- --check
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Clippy (workspace except Python bindings)
-        run: cargo +stable clippy --all-targets --all-features --workspace --exclude feedparser-rs-py -- -D warnings
-
-      - name: Install SARIF tools
-        run: cargo install clippy-sarif sarif-fmt
-
-      - name: Clippy SARIF (for GitHub PR annotations)
-        run: |
-          cargo clippy --all-targets --all-features --workspace \
-            --exclude feedparser-rs-py --message-format=json -- -D warnings | \
-          clippy-sarif | tee clippy-results.sarif | sarif-fmt
-        continue-on-error: true
+      - name: Run lint checks
+        run: cargo make ci-lint
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
-
-      - name: Check documentation
-        run: cargo doc --no-deps --all-features --workspace --exclude feedparser-rs-py
-        env:
-          RUSTDOCFLAGS: "-D warnings"
 
   # Security audit
   security:
@@ -95,20 +80,11 @@ jobs:
         with:
           shared-key: "security"
 
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Scan for vulnerabilities
-        run: cargo deny check advisories
-
-      - name: Check licenses
-        run: cargo deny check licenses
-
-      - name: Check bans
-        run: cargo deny check bans
-
-      - name: Check sources
-        run: cargo deny check sources
+      - name: Run security checks
+        run: cargo make ci-security
 
   # Cross-platform Rust tests
   test-rust:
@@ -129,20 +105,17 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install nextest
-        uses: taiki-e/install-action@nextest
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "test-rust-${{ matrix.os }}"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Run tests
-        run: cargo nextest run --all-features --no-fail-fast --workspace --exclude feedparser-rs-py
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Run doctests
-        run: cargo test --doc --all-features --workspace --exclude feedparser-rs-py
+      - name: Run Rust tests
+        run: cargo make ci-test-rust
 
   # Python bindings tests
   test-python:
@@ -193,25 +166,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install maturin and pytest
-        run: uv pip install --system maturin pytest
-
-      - name: Build Python wheel
-        working-directory: crates/feedparser-rs-py
-        run: maturin build --release --out dist
-
-      - name: Install wheel
-        working-directory: crates/feedparser-rs-py
-        shell: bash
-        run: uv pip install --system dist/*.whl
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
       - name: Run Python tests
-        working-directory: crates/feedparser-rs-py
-        run: pytest tests/ -v
-        if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
-
-      - name: Test Python import
-        run: python -c "import feedparser_rs; print(f'feedparser-rs version loaded successfully')"
+        run: cargo make ci-test-python
 
   # Node.js bindings tests
   test-node:
@@ -251,17 +210,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: crates/feedparser-rs-node/package-lock.json
 
-      - name: Install dependencies
-        working-directory: crates/feedparser-rs-node
-        run: npm ci
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Build native module
-        working-directory: crates/feedparser-rs-node
-        run: npm run build
-
-      - name: Test
-        working-directory: crates/feedparser-rs-node
-        run: npm test
+      - name: Run Node.js tests
+        run: cargo make ci-test-node
 
   # Rust code coverage
   coverage-rust:
@@ -285,16 +238,11 @@ jobs:
           shared-key: "coverage-rust"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install nextest
-        uses: taiki-e/install-action@nextest
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Generate coverage
-        run: |
-          cargo llvm-cov --all-features --workspace --exclude feedparser-rs-py \
-            --lcov --output-path lcov.info nextest
+      - name: Generate Rust coverage
+        run: cargo make ci-coverage-rust
 
       - name: Upload to codecov
         uses: codecov/codecov-action@v5
@@ -333,24 +281,12 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install dependencies
-        run: uv pip install --system maturin pytest pytest-cov
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Build Python wheel
-        working-directory: crates/feedparser-rs-py
-        run: maturin build --release --out dist
-
-      - name: Install wheel
-        working-directory: crates/feedparser-rs-py
-        shell: bash
-        run: uv pip install --system dist/*.whl
-
-      - name: Run tests with coverage
-        working-directory: crates/feedparser-rs-py
-        run: |
-          pytest tests/ --cov=feedparser_rs --cov-report=xml --cov-report=term
+      - name: Generate Python coverage
+        run: cargo make ci-coverage-python
         continue-on-error: true
-        if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
 
       - name: Upload Python coverage to codecov
         uses: codecov/codecov-action@v5
@@ -388,17 +324,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: crates/feedparser-rs-node/package-lock.json
 
-      - name: Install dependencies
-        working-directory: crates/feedparser-rs-node
-        run: npm ci
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
 
-      - name: Build native module
-        working-directory: crates/feedparser-rs-node
-        run: npm run build
-
-      - name: Run tests with coverage
-        working-directory: crates/feedparser-rs-node
-        run: npm test -- --coverage
+      - name: Generate Node.js coverage
+        run: cargo make ci-coverage-node
         continue-on-error: true
 
       - name: Upload Node.js coverage to codecov
@@ -430,8 +360,11 @@ jobs:
         with:
           shared-key: "msrv"
 
+      - name: Install cargo-make
+        uses: taiki-e/install-action@cargo-make
+
       - name: Check with MSRV
-        run: cargo +1.88.0 check --all-features --workspace --exclude feedparser-rs-py
+        run: cargo make ci-msrv
 
   # All checks passed gate
   ci-success:
