@@ -4,8 +4,9 @@ use crate::{
     ParserLimits,
     error::{FeedError, Result},
     types::{
-        Enclosure, Entry, FeedVersion, Image, Link, ParsedFeed, Source, Tag, TextConstruct,
-        TextType,
+        Enclosure, Entry, FeedVersion, Image, ItunesCategory, ItunesEntryMeta, ItunesFeedMeta,
+        ItunesOwner, Link, ParsedFeed, PodcastFunding, PodcastMeta, Source, Tag, TextConstruct,
+        TextType, parse_duration, parse_explicit,
     },
     util::parse_date,
 };
@@ -105,7 +106,9 @@ fn parse_channel(
                     )));
                 }
 
-                match e.local_name().as_ref() {
+                // Use full qualified name to distinguish standard RSS tags from namespaced tags
+                // (e.g., <image> vs <itunes:image>, <category> vs <itunes:category>)
+                match e.name().as_ref() {
                     b"title" => {
                         feed.feed.title = Some(read_text(reader, &mut buf, limits)?);
                     }
@@ -185,7 +188,111 @@ fn parse_channel(
                             }
                         }
                     }
-                    _ => skip_element(reader, &mut buf, limits, *depth)?,
+                    tag => {
+                        // Check for iTunes and Podcast 2.0 namespace tags
+                        let handled = if is_itunes_tag(tag, b"author") {
+                            let text = read_text(reader, &mut buf, limits)?;
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            itunes.author = Some(text);
+                            true
+                        } else if is_itunes_tag(tag, b"owner") {
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            if let Ok(owner) = parse_itunes_owner(reader, &mut buf, limits, depth) {
+                                itunes.owner = Some(owner);
+                            }
+                            true
+                        } else if is_itunes_tag(tag, b"category") {
+                            // Parse category inline to avoid borrow conflicts
+                            let mut category_text = String::new();
+                            for attr in e.attributes().flatten() {
+                                if attr.key.as_ref() == b"text"
+                                    && let Ok(value) = attr.unescape_value()
+                                {
+                                    category_text =
+                                        value.chars().take(limits.max_attribute_length).collect();
+                                }
+                            }
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            itunes.categories.push(ItunesCategory {
+                                text: category_text,
+                                subcategory: None,
+                            });
+                            skip_element(reader, &mut buf, limits, *depth)?;
+                            true
+                        } else if is_itunes_tag(tag, b"explicit") {
+                            let text = read_text(reader, &mut buf, limits)?;
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            itunes.explicit = parse_explicit(&text);
+                            true
+                        } else if is_itunes_tag(tag, b"image") {
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            for attr in e.attributes().flatten() {
+                                if attr.key.as_ref() == b"href"
+                                    && let Ok(value) = attr.unescape_value()
+                                {
+                                    itunes.image = Some(
+                                        value.chars().take(limits.max_attribute_length).collect(),
+                                    );
+                                }
+                            }
+                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
+                            //       and calling skip_element would consume the next tag's end event
+                            true
+                        } else if is_itunes_tag(tag, b"keywords") {
+                            let text = read_text(reader, &mut buf, limits)?;
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            itunes.keywords = text
+                                .split(',')
+                                .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
+                                .collect();
+                            true
+                        } else if is_itunes_tag(tag, b"type") {
+                            let text = read_text(reader, &mut buf, limits)?;
+                            let itunes =
+                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+                            itunes.podcast_type = Some(text);
+                            true
+                        } else if tag.starts_with(b"podcast:guid") {
+                            let text = read_text(reader, &mut buf, limits)?;
+                            let podcast =
+                                feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+                            podcast.guid = Some(text);
+                            true
+                        } else if tag.starts_with(b"podcast:funding") {
+                            // Parse funding inline to avoid borrow conflicts
+                            let mut url = String::new();
+                            for attr in e.attributes().flatten() {
+                                if attr.key.as_ref() == b"url"
+                                    && let Ok(value) = attr.unescape_value()
+                                {
+                                    url = value.chars().take(limits.max_attribute_length).collect();
+                                }
+                            }
+                            let message_text = read_text(reader, &mut buf, limits)?;
+                            let message = if message_text.is_empty() {
+                                None
+                            } else {
+                                Some(message_text)
+                            };
+                            let podcast =
+                                feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+                            podcast.funding.push(PodcastFunding { url, message });
+                            true
+                        } else {
+                            false
+                        };
+
+                        if !handled {
+                            skip_element(reader, &mut buf, limits, *depth)?;
+                        }
+                    }
                 }
                 *depth = depth.saturating_sub(1);
             }
@@ -222,7 +329,8 @@ fn parse_item(
                     )));
                 }
 
-                match e.local_name().as_ref() {
+                // Use full qualified name to distinguish standard RSS tags from namespaced tags
+                match e.name().as_ref() {
                     b"title" => {
                         entry.title = Some(read_text(reader, buf, limits)?);
                     }
@@ -285,8 +393,72 @@ fn parse_item(
                             entry.source = Some(source);
                         }
                     }
-                    _ => {
-                        skip_element(reader, buf, limits, *depth)?;
+                    tag => {
+                        // Check for iTunes and Podcast 2.0 namespace tags
+                        let handled = if is_itunes_tag(tag, b"title") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.title = Some(text);
+                            true
+                        } else if is_itunes_tag(tag, b"author") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.author = Some(text);
+                            true
+                        } else if is_itunes_tag(tag, b"duration") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.duration = parse_duration(&text);
+                            true
+                        } else if is_itunes_tag(tag, b"explicit") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.explicit = parse_explicit(&text);
+                            true
+                        } else if is_itunes_tag(tag, b"image") {
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            for attr in e.attributes().flatten() {
+                                if attr.key.as_ref() == b"href"
+                                    && let Ok(value) = attr.unescape_value()
+                                {
+                                    itunes.image = Some(
+                                        value.chars().take(limits.max_attribute_length).collect(),
+                                    );
+                                }
+                            }
+                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
+                            true
+                        } else if is_itunes_tag(tag, b"episode") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.episode = text.parse().ok();
+                            true
+                        } else if is_itunes_tag(tag, b"season") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.season = text.parse().ok();
+                            true
+                        } else if is_itunes_tag(tag, b"episodeType") {
+                            let text = read_text(reader, buf, limits)?;
+                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+                            itunes.episode_type = Some(text);
+                            true
+                        } else if tag.starts_with(b"podcast:transcript") {
+                            // Podcast 2.0 transcript not stored in Entry for now
+                            skip_element(reader, buf, limits, *depth)?;
+                            true
+                        } else if tag.starts_with(b"podcast:person") {
+                            // Parse person inline to avoid borrow conflicts
+                            // Podcast 2.0 person not stored in Entry for now (no podcast field)
+                            skip_element(reader, buf, limits, *depth)?;
+                            true
+                        } else {
+                            false
+                        };
+
+                        if !handled {
+                            skip_element(reader, buf, limits, *depth)?;
+                        }
                     }
                 }
                 *depth = depth.saturating_sub(1);
@@ -413,6 +585,67 @@ fn parse_source(
     }
 
     Ok(Source { title, link, id })
+}
+
+/// Check if element name matches an iTunes namespace tag
+///
+/// iTunes tags can appear as either:
+/// - `itunes:tag` (with namespace prefix)
+/// - Just `tag` in the iTunes namespace URI
+///
+/// The fallback `name == tag` is intentional and safe because:
+/// 1. iTunes namespace elements SHOULD have a prefix (e.g., `itunes:author`)
+/// 2. Fallback exists for feeds that don't use the prefix but declare iTunes namespace
+/// 3. Match order in calling code ensures standard RSS elements (title, link, etc.) are
+///    handled first in the outer match statement, preventing incorrect matches
+#[inline]
+fn is_itunes_tag(name: &[u8], tag: &[u8]) -> bool {
+    // Check for "itunes:tag" pattern
+    if name.starts_with(b"itunes:") && &name[7..] == tag {
+        return true;
+    }
+    // Also check for just the tag name (some feeds don't use prefix)
+    name == tag
+}
+
+/// Parse iTunes owner from <itunes:owner> element
+fn parse_itunes_owner(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    limits: &ParserLimits,
+    depth: &mut usize,
+) -> Result<ItunesOwner> {
+    let mut owner = ItunesOwner::default();
+
+    loop {
+        match reader.read_event_into(buf) {
+            Ok(Event::Start(e)) => {
+                *depth += 1;
+                if *depth > limits.max_nesting_depth {
+                    return Err(FeedError::InvalidFormat(format!(
+                        "XML nesting depth {} exceeds maximum {}",
+                        depth, limits.max_nesting_depth
+                    )));
+                }
+
+                let tag_name = e.local_name();
+                if is_itunes_tag(tag_name.as_ref(), b"name") {
+                    owner.name = Some(read_text(reader, buf, limits)?);
+                } else if is_itunes_tag(tag_name.as_ref(), b"email") {
+                    owner.email = Some(read_text(reader, buf, limits)?);
+                } else {
+                    skip_element(reader, buf, limits, *depth)?;
+                }
+                *depth = depth.saturating_sub(1);
+            }
+            Ok(Event::End(_) | Event::Eof) => break,
+            Err(e) => return Err(e.into()),
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(owner)
 }
 
 #[cfg(test)]

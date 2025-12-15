@@ -59,8 +59,10 @@ pub use error::{FeedError, Result};
 pub use limits::{LimitError, ParserLimits};
 pub use parser::{detect_format, parse, parse_with_limits};
 pub use types::{
-    Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, LimitedCollectionExt, Link,
-    ParsedFeed, Person, Source, Tag, TextConstruct, TextType,
+    Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, ItunesCategory,
+    ItunesEntryMeta, ItunesFeedMeta, ItunesOwner, LimitedCollectionExt, Link, ParsedFeed, Person,
+    PodcastFunding, PodcastMeta, PodcastPerson, PodcastTranscript, Source, Tag, TextConstruct,
+    TextType, parse_duration, parse_explicit,
 };
 
 #[cfg(test)]

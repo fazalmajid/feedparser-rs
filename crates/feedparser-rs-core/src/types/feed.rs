@@ -1,6 +1,7 @@
 use super::{
     common::{Generator, Image, Link, Person, Tag, TextConstruct},
     entry::Entry,
+    podcast::{ItunesFeedMeta, PodcastMeta},
     version::FeedVersion,
 };
 use chrono::{DateTime, Utc};
@@ -57,6 +58,10 @@ pub struct FeedMeta {
     pub id: Option<String>,
     /// Time-to-live (update frequency hint) in minutes
     pub ttl: Option<u32>,
+    /// iTunes podcast metadata (if present)
+    pub itunes: Option<ItunesFeedMeta>,
+    /// Podcast 2.0 namespace metadata (if present)
+    pub podcast: Option<PodcastMeta>,
 }
 
 /// Parsed feed result
