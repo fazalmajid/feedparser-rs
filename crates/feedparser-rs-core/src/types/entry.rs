@@ -101,6 +101,74 @@ impl Entry {
             ..Default::default()
         }
     }
+
+    /// Sets title field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, TextConstruct};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_title(TextConstruct::text("Great Article"));
+    /// assert_eq!(entry.title.as_deref(), Some("Great Article"));
+    /// ```
+    #[inline]
+    pub fn set_title(&mut self, text: TextConstruct) {
+        self.title = Some(text.value.clone());
+        self.title_detail = Some(text);
+    }
+
+    /// Sets summary field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, TextConstruct};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_summary(TextConstruct::text("A summary"));
+    /// assert_eq!(entry.summary.as_deref(), Some("A summary"));
+    /// ```
+    #[inline]
+    pub fn set_summary(&mut self, text: TextConstruct) {
+        self.summary = Some(text.value.clone());
+        self.summary_detail = Some(text);
+    }
+
+    /// Sets author field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, Person};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_author(Person::from_name("Jane Doe"));
+    /// assert_eq!(entry.author.as_deref(), Some("Jane Doe"));
+    /// ```
+    #[inline]
+    pub fn set_author(&mut self, person: Person) {
+        self.author.clone_from(&person.name);
+        self.author_detail = Some(person);
+    }
+
+    /// Sets publisher field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, Person};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_publisher(Person::from_name("ACME Corp"));
+    /// assert_eq!(entry.publisher.as_deref(), Some("ACME Corp"));
+    /// ```
+    #[inline]
+    pub fn set_publisher(&mut self, person: Person) {
+        self.publisher.clone_from(&person.name);
+        self.publisher_detail = Some(person);
+    }
 }
 
 #[cfg(test)]

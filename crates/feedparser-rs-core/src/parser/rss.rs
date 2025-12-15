@@ -172,12 +172,7 @@ fn parse_channel(
                         }
                     }
                     b"item" => {
-                        if feed.entries.is_at_limit(limits.max_entries) {
-                            feed.bozo = true;
-                            feed.bozo_exception =
-                                Some(format!("Entry limit exceeded: {}", limits.max_entries));
-                            skip_element(reader, &mut buf, limits, *depth)?;
-                            *depth = depth.saturating_sub(1);
+                        if !feed.check_entry_limit(reader, &mut buf, limits, depth)? {
                             continue;
                         }
 

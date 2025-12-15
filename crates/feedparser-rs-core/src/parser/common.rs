@@ -19,6 +19,56 @@ pub const EVENT_BUFFER_CAPACITY: usize = 1024;
 /// Initial capacity for text content (typical field size)
 pub const TEXT_BUFFER_CAPACITY: usize = 256;
 
+/// Creates a new event buffer with optimized capacity
+///
+/// This factory function provides a semantic way to create XML event buffers
+/// with consistent capacity across all parsers. Using this instead of direct
+/// `Vec::with_capacity()` calls makes it easier to tune buffer sizes in one place.
+///
+/// # Returns
+///
+/// A `Vec<u8>` pre-allocated with `EVENT_BUFFER_CAPACITY` (1024 bytes)
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs_core::parser::common::new_event_buffer;
+///
+/// let mut buf = new_event_buffer();
+/// assert!(buf.capacity() >= 1024);
+/// ```
+#[inline]
+#[must_use]
+#[allow(dead_code)] // Future use: Will be adopted when refactoring parsers
+pub fn new_event_buffer() -> Vec<u8> {
+    Vec::with_capacity(EVENT_BUFFER_CAPACITY)
+}
+
+/// Creates a new text buffer with optimized capacity
+///
+/// This factory function provides a semantic way to create text content buffers
+/// with consistent capacity across all parsers. Useful for accumulating text
+/// content from XML elements.
+///
+/// # Returns
+///
+/// A `String` pre-allocated with `TEXT_BUFFER_CAPACITY` (256 bytes)
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs_core::parser::common::new_text_buffer;
+///
+/// let mut text = new_text_buffer();
+/// assert!(text.capacity() >= 256);
+/// ```
+#[inline]
+#[must_use]
+#[allow(dead_code)] // Future use: Will be adopted when refactoring parsers
+pub fn new_text_buffer() -> String {
+    String::with_capacity(TEXT_BUFFER_CAPACITY)
+}
+
 /// Context for parsing operations
 ///
 /// Bundles together common parsing state to reduce function parameter count.

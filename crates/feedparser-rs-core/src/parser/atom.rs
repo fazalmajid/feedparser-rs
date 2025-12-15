@@ -119,8 +119,7 @@ fn parse_feed_element(
                 match element.name().as_ref() {
                     b"title" if !is_empty => {
                         let text = parse_text_construct(reader, &mut buf, &element, limits)?;
-                        feed.feed.title = Some(text.value.clone());
-                        feed.feed.title_detail = Some(text);
+                        feed.feed.set_title(text);
                     }
                     b"link" => {
                         if let Some(link) = Link::from_attributes(
@@ -141,8 +140,7 @@ fn parse_feed_element(
                     }
                     b"subtitle" if !is_empty => {
                         let text = parse_text_construct(reader, &mut buf, &element, limits)?;
-                        feed.feed.subtitle = Some(text.value.clone());
-                        feed.feed.subtitle_detail = Some(text);
+                        feed.feed.set_subtitle(text);
                     }
                     b"id" if !is_empty => {
                         feed.feed.id = Some(read_text(reader, &mut buf, limits)?);
@@ -154,8 +152,7 @@ fn parse_feed_element(
                     b"author" if !is_empty => {
                         if let Ok(person) = parse_person(reader, &mut buf, limits, depth) {
                             if feed.feed.author.is_none() {
-                                feed.feed.author.clone_from(&person.name);
-                                feed.feed.author_detail = Some(person.clone());
+                                feed.feed.set_author(person.clone());
                             }
                             feed.feed
                                 .authors
@@ -182,8 +179,7 @@ fn parse_feed_element(
                     }
                     b"generator" if !is_empty => {
                         let generator = parse_generator(reader, &mut buf, &element, limits)?;
-                        feed.feed.generator = Some(generator.value.clone());
-                        feed.feed.generator_detail = Some(generator);
+                        feed.feed.set_generator(generator);
                     }
                     b"icon" if !is_empty => {
                         feed.feed.icon = Some(read_text(reader, &mut buf, limits)?);
@@ -193,16 +189,10 @@ fn parse_feed_element(
                     }
                     b"rights" if !is_empty => {
                         let text = parse_text_construct(reader, &mut buf, &element, limits)?;
-                        feed.feed.rights = Some(text.value.clone());
-                        feed.feed.rights_detail = Some(text);
+                        feed.feed.set_rights(text);
                     }
                     b"entry" if !is_empty => {
-                        if feed.entries.is_at_limit(limits.max_entries) {
-                            feed.bozo = true;
-                            feed.bozo_exception =
-                                Some(format!("Entry limit exceeded: {}", limits.max_entries));
-                            skip_element(reader, &mut buf, limits, *depth)?;
-                            *depth = depth.saturating_sub(1);
+                        if !feed.check_entry_limit(reader, &mut buf, limits, depth)? {
                             continue;
                         }
 
@@ -288,8 +278,7 @@ fn parse_entry(
                 match element.name().as_ref() {
                     b"title" if !is_empty => {
                         let text = parse_text_construct(reader, buf, &element, limits)?;
-                        entry.title = Some(text.value.clone());
-                        entry.title_detail = Some(text);
+                        entry.set_title(text);
                     }
                     b"link" => {
                         if let Some(link) = Link::from_attributes(
@@ -320,8 +309,7 @@ fn parse_entry(
                     }
                     b"summary" if !is_empty => {
                         let text = parse_text_construct(reader, buf, &element, limits)?;
-                        entry.summary = Some(text.value.clone());
-                        entry.summary_detail = Some(text);
+                        entry.set_summary(text);
                     }
                     b"content" if !is_empty => {
                         let content = parse_content(reader, buf, &element, limits)?;
@@ -332,8 +320,7 @@ fn parse_entry(
                     b"author" if !is_empty => {
                         if let Ok(person) = parse_person(reader, buf, limits, depth) {
                             if entry.author.is_none() {
-                                entry.author.clone_from(&person.name);
-                                entry.author_detail = Some(person.clone());
+                                entry.set_author(person.clone());
                             }
                             entry.authors.try_push_limited(person, limits.max_authors);
                         }

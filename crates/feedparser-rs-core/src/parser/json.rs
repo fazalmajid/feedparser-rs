@@ -77,8 +77,7 @@ pub fn parse_json_feed_with_limits(data: &[u8], limits: ParserLimits) -> Result<
 fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits) {
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        feed.title_detail = Some(TextConstruct::text(&truncated));
-        feed.title = Some(truncated);
+        feed.set_title(TextConstruct::text(&truncated));
     }
 
     if let Some(url) = json.get("home_page_url").and_then(|v| v.as_str())
@@ -162,8 +161,7 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
         let truncated = truncate_text(title, limits.max_text_length);
-        entry.title_detail = Some(TextConstruct::text(&truncated));
-        entry.title = Some(truncated);
+        entry.set_title(TextConstruct::text(&truncated));
     }
 
     if let Some(content_html) = json.get("content_html").and_then(|v| v.as_str()) {
@@ -182,8 +180,7 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
 
     if let Some(summary) = json.get("summary").and_then(|v| v.as_str()) {
         let truncated = truncate_text(summary, limits.max_text_length);
-        entry.summary_detail = Some(TextConstruct::text(&truncated));
-        entry.summary = Some(truncated);
+        entry.set_summary(TextConstruct::text(&truncated));
     }
 
     if let Some(image) = json.get("image").and_then(|v| v.as_str()) {

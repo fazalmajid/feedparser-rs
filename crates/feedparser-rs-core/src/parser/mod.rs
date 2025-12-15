@@ -2,10 +2,12 @@ pub mod atom;
 mod common;
 mod detect;
 pub mod json;
+pub mod namespace_detection;
 pub mod rss;
 
 use crate::{error::Result, types::ParsedFeed};
 
+pub use common::skip_element;
 pub use detect::detect_format;
 
 /// Parse feed from raw bytes
