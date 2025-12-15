@@ -190,6 +190,7 @@ jobs:
 
       - name: Install wheel
         working-directory: crates/feedparser-rs-py
+        shell: bash
         run: uv pip install --system dist/*.whl
 
       - name: Run Python tests
@@ -323,6 +324,7 @@ jobs:
 
       - name: Install wheel
         working-directory: crates/feedparser-rs-py
+        shell: bash
         run: uv pip install --system dist/*.whl
 
       - name: Run tests with coverage
