@@ -191,7 +191,7 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
 
       - name: Install maturin and pytest
         run: uv pip install --system maturin pytest
@@ -331,7 +331,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: uv pip install --system maturin pytest pytest-cov
