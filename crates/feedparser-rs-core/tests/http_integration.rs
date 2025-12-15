@@ -700,7 +700,7 @@ mod http_tests {
     #[test]
     fn test_invalid_etag_returns_error() {
         let result = test_get(
-            "http://example.com/feed.xml",
+            "https://example.com/feed.xml",
             Some("\n\r"),
             None,
             None,
@@ -719,7 +719,7 @@ mod http_tests {
     #[test]
     fn test_invalid_last_modified_returns_error() {
         let result = test_get(
-            "http://example.com/feed.xml",
+            "https://example.com/feed.xml",
             None,
             Some("\n\r"),
             None,
