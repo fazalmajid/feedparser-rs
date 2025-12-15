@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -47,10 +47,12 @@ jobs:
         run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
-        run: cargo +stable clippy --all-targets --all-features -- -D warnings
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo +stable clippy --all-targets --all-features --workspace --exclude feedparser-rs-py -- -D warnings
 
       - name: Check documentation
-        run: cargo doc --no-deps --all-features
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo doc --no-deps --all-features --workspace --exclude feedparser-rs-py
         env:
           RUSTDOCFLAGS: "-D warnings"
 
@@ -65,7 +67,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -80,13 +82,16 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build
-        run: cargo build --all-features
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo build --all-features --workspace --exclude feedparser-rs-py
 
       - name: Run tests
-        run: cargo nextest run --all-features --no-fail-fast
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo nextest run --all-features --no-fail-fast --workspace --exclude feedparser-rs-py
 
       - name: Run doctests
-        run: cargo test --doc --all-features
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo test --doc --all-features --workspace --exclude feedparser-rs-py
 
   # Node.js bindings tests
   test-node:
@@ -100,7 +105,7 @@ jobs:
         node: [20, 22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -113,7 +118,7 @@ jobs:
           workspaces: crates/feedparser-rs-node
 
       - name: Setup Node.js ${{ matrix.node }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: 'npm'
@@ -137,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -151,10 +156,11 @@ jobs:
         uses: taiki-e/install-action@cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --out xml --all-features --engine llvm
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo tarpaulin --out xml --all-features --engine llvm --workspace --exclude feedparser-rs-py
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./cobertura.xml
           fail_ci_if_error: false
@@ -166,7 +172,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust 1.88.0
         uses: dtolnay/rust-toolchain@master
@@ -179,7 +185,8 @@ jobs:
           shared-key: "msrv"
 
       - name: Check with MSRV
-        run: cargo +1.88.0 check --all-features
+        # Exclude feedparser-rs-py (cdylib requires Python runtime for linking)
+        run: cargo +1.88.0 check --all-features --workspace --exclude feedparser-rs-py
 
   # All checks passed gate
   ci-success:
