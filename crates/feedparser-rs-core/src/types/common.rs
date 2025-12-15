@@ -1,14 +1,6 @@
 use super::generics::{FromAttributes, ParseFrom};
+use crate::util::text::bytes_to_string;
 use serde_json::Value;
-
-/// Helper for efficient bytes to string conversion
-#[inline]
-fn bytes_to_string(value: &[u8]) -> String {
-    std::str::from_utf8(value).map_or_else(
-        |_| String::from_utf8_lossy(value).into_owned(),
-        std::string::ToString::to_string,
-    )
-}
 
 /// Link in feed or entry
 #[derive(Debug, Clone, Default)]
@@ -97,6 +89,29 @@ pub struct Person {
     pub email: Option<String>,
     /// Person's URI/website
     pub uri: Option<String>,
+}
+
+impl Person {
+    /// Create person from just a name
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::types::Person;
+    ///
+    /// let person = Person::from_name("John Doe");
+    /// assert_eq!(person.name.as_deref(), Some("John Doe"));
+    /// assert!(person.email.is_none());
+    /// assert!(person.uri.is_none());
+    /// ```
+    #[inline]
+    pub fn from_name(name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            email: None,
+            uri: None,
+        }
+    }
 }
 
 /// Tag/category

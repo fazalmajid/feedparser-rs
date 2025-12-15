@@ -46,21 +46,13 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
             for keyword in text.split(',') {
                 let keyword = keyword.trim();
                 if !keyword.is_empty() {
-                    entry.tags.push(Tag {
-                        term: keyword.to_string(),
-                        scheme: None,
-                        label: None,
-                    });
+                    entry.tags.push(Tag::new(keyword));
                 }
             }
         }
         "category" => {
             if !text.is_empty() {
-                entry.tags.push(Tag {
-                    term: text.to_string(),
-                    scheme: None,
-                    label: None,
-                });
+                entry.tags.push(Tag::new(text));
             }
         }
         _ => {

@@ -11,6 +11,7 @@ use crate::{
 use quick_xml::{Reader, events::Event};
 
 pub use crate::types::{FromAttributes, LimitedCollectionExt};
+pub use crate::util::text::bytes_to_string;
 
 /// Initial capacity for XML event buffer (fits most elements)
 pub const EVENT_BUFFER_CAPACITY: usize = 1024;
@@ -104,18 +105,6 @@ pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
         )));
     }
     Ok(())
-}
-
-/// Efficient string conversion from bytes - zero-copy for valid UTF-8
-///
-/// Uses `std::str::from_utf8()` for zero-copy conversion when the input
-/// is valid UTF-8, falling back to lossy conversion otherwise.
-#[inline]
-pub fn bytes_to_string(value: &[u8]) -> String {
-    std::str::from_utf8(value).map_or_else(
-        |_| String::from_utf8_lossy(value).into_owned(),
-        std::string::ToString::to_string,
-    )
 }
 
 /// Read text content from current XML element (handles text and CDATA)

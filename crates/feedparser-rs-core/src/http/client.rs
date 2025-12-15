@@ -3,7 +3,8 @@ use super::validation::validate_url;
 use crate::error::{FeedError, Result};
 use reqwest::blocking::{Client, Response};
 use reqwest::header::{
-    ACCEPT, ACCEPT_ENCODING, HeaderMap, HeaderValue, IF_MODIFIED_SINCE, IF_NONE_MATCH, USER_AGENT,
+    ACCEPT, ACCEPT_ENCODING, HeaderMap, HeaderName, HeaderValue, IF_MODIFIED_SINCE, IF_NONE_MATCH,
+    USER_AGENT,
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -63,6 +64,25 @@ impl FeedHttpClient {
         self
     }
 
+    /// Insert header with consistent error handling
+    ///
+    /// Helper method to reduce boilerplate in header insertion.
+    #[inline]
+    fn insert_header(
+        headers: &mut HeaderMap,
+        name: HeaderName,
+        value: &str,
+        field_name: &str,
+    ) -> Result<()> {
+        headers.insert(
+            name,
+            HeaderValue::from_str(value).map_err(|e| FeedError::Http {
+                message: format!("Invalid {field_name}: {e}"),
+            })?,
+        );
+        Ok(())
+    }
+
     /// Fetches a feed from the given URL
     ///
     /// Supports conditional GET with `ETag` and `Last-Modified` headers.
@@ -91,12 +111,7 @@ impl FeedHttpClient {
         let mut headers = HeaderMap::new();
 
         // Standard headers
-        headers.insert(
-            USER_AGENT,
-            HeaderValue::from_str(&self.user_agent).map_err(|e| FeedError::Http {
-                message: format!("Invalid User-Agent: {e}"),
-            })?,
-        );
+        Self::insert_header(&mut headers, USER_AGENT, &self.user_agent, "User-Agent")?;
 
         headers.insert(
             ACCEPT,
@@ -112,21 +127,16 @@ impl FeedHttpClient {
 
         // Conditional GET headers
         if let Some(etag_val) = etag {
-            headers.insert(
-                IF_NONE_MATCH,
-                HeaderValue::from_str(etag_val).map_err(|e| FeedError::Http {
-                    message: format!("Invalid ETag: {e}"),
-                })?,
-            );
+            Self::insert_header(&mut headers, IF_NONE_MATCH, etag_val, "ETag")?;
         }
 
         if let Some(modified_val) = modified {
-            headers.insert(
+            Self::insert_header(
+                &mut headers,
                 IF_MODIFIED_SINCE,
-                HeaderValue::from_str(modified_val).map_err(|e| FeedError::Http {
-                    message: format!("Invalid Last-Modified: {e}"),
-                })?,
-            );
+                modified_val,
+                "Last-Modified",
+            )?;
         }
 
         // Merge extra headers
