@@ -1,10 +1,13 @@
 use super::{
     common::{Generator, Image, Link, Person, Tag, TextConstruct},
     entry::Entry,
+    generics::LimitedCollectionExt,
     podcast::{ItunesFeedMeta, PodcastMeta},
     version::FeedVersion,
 };
+use crate::{ParserLimits, error::Result};
 use chrono::{DateTime, Utc};
+use quick_xml::Reader;
 use std::collections::HashMap;
 
 /// Feed metadata
@@ -139,6 +142,63 @@ impl ParsedFeed {
             ..Default::default()
         }
     }
+
+    /// Check if entry limit is reached, set bozo flag and skip element if so
+    ///
+    /// This helper consolidates the duplicate entry limit checking logic used in
+    /// RSS and Atom parsers. If the entry limit is reached, it:
+    /// - Sets `bozo` flag to true
+    /// - Sets `bozo_exception` with descriptive error message
+    /// - Skips the entry element
+    /// - Returns `Ok(false)` to signal that the entry should not be processed
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - XML reader positioned at the entry element
+    /// * `buf` - Buffer for XML event reading
+    /// * `limits` - Parser limits including `max_entries`
+    /// * `depth` - Current nesting depth (will be decremented)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - Entry can be processed (limit not reached)
+    /// * `Ok(false)` - Entry limit reached, element was skipped
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Skipping the entry element fails (e.g., malformed XML)
+    /// - Nesting depth exceeds limits while skipping
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // In parser:
+    /// if !feed.check_entry_limit(reader, &mut buf, limits, depth)? {
+    ///     continue;
+    /// }
+    /// // Process entry...
+    /// ```
+    #[inline]
+    pub fn check_entry_limit(
+        &mut self,
+        reader: &mut Reader<&[u8]>,
+        buf: &mut Vec<u8>,
+        limits: &ParserLimits,
+        depth: &mut usize,
+    ) -> Result<bool> {
+        use crate::parser::skip_element;
+
+        if self.entries.is_at_limit(limits.max_entries) {
+            self.bozo = true;
+            self.bozo_exception = Some(format!("Entry limit exceeded: {}", limits.max_entries));
+            skip_element(reader, buf, limits, *depth)?;
+            *depth = depth.saturating_sub(1);
+            Ok(false)
+        } else {
+            Ok(true)
+        }
+    }
 }
 
 impl FeedMeta {
@@ -191,6 +251,115 @@ impl FeedMeta {
             tags: Vec::with_capacity(5),
             ..Default::default()
         }
+    }
+
+    /// Sets title field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    ///
+    /// let mut meta = FeedMeta::default();
+    /// meta.set_title(TextConstruct::text("Example Feed"));
+    /// assert_eq!(meta.title.as_deref(), Some("Example Feed"));
+    /// ```
+    #[inline]
+    pub fn set_title(&mut self, mut text: TextConstruct) {
+        self.title = Some(std::mem::take(&mut text.value));
+        self.title_detail = Some(text);
+    }
+
+    /// Sets subtitle field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    ///
+    /// let mut meta = FeedMeta::default();
+    /// meta.set_subtitle(TextConstruct::text("A great feed"));
+    /// assert_eq!(meta.subtitle.as_deref(), Some("A great feed"));
+    /// ```
+    #[inline]
+    pub fn set_subtitle(&mut self, mut text: TextConstruct) {
+        self.subtitle = Some(std::mem::take(&mut text.value));
+        self.subtitle_detail = Some(text);
+    }
+
+    /// Sets rights field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    ///
+    /// let mut meta = FeedMeta::default();
+    /// meta.set_rights(TextConstruct::text("© 2025 Example"));
+    /// assert_eq!(meta.rights.as_deref(), Some("© 2025 Example"));
+    /// ```
+    #[inline]
+    pub fn set_rights(&mut self, mut text: TextConstruct) {
+        self.rights = Some(std::mem::take(&mut text.value));
+        self.rights_detail = Some(text);
+    }
+
+    /// Sets generator field with `Generator`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, Generator};
+    ///
+    /// # fn main() {
+    /// let mut meta = FeedMeta::default();
+    /// let generator = Generator {
+    ///     value: "Example Generator".to_string(),
+    ///     uri: None,
+    ///     version: None,
+    /// };
+    /// meta.set_generator(generator);
+    /// assert_eq!(meta.generator.as_deref(), Some("Example Generator"));
+    /// # }
+    /// ```
+    #[inline]
+    pub fn set_generator(&mut self, mut generator: Generator) {
+        self.generator = Some(std::mem::take(&mut generator.value));
+        self.generator_detail = Some(generator);
+    }
+
+    /// Sets author field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, Person};
+    ///
+    /// let mut meta = FeedMeta::default();
+    /// meta.set_author(Person::from_name("John Doe"));
+    /// assert_eq!(meta.author.as_deref(), Some("John Doe"));
+    /// ```
+    #[inline]
+    pub fn set_author(&mut self, mut person: Person) {
+        self.author = person.name.take();
+        self.author_detail = Some(person);
+    }
+
+    /// Sets publisher field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{FeedMeta, Person};
+    ///
+    /// let mut meta = FeedMeta::default();
+    /// meta.set_publisher(Person::from_name("ACME Corp"));
+    /// assert_eq!(meta.publisher.as_deref(), Some("ACME Corp"));
+    /// ```
+    #[inline]
+    pub fn set_publisher(&mut self, mut person: Person) {
+        self.publisher = person.name.take();
+        self.publisher_detail = Some(person);
     }
 }
 

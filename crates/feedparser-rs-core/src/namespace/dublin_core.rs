@@ -39,11 +39,7 @@ pub fn handle_feed_element(element: &str, text: &str, feed: &mut FeedMeta) {
             // Store in dc_creator field
             feed.dc_creator = Some(text.to_string());
             // Also add to authors list
-            feed.authors.push(Person {
-                name: Some(text.to_string()),
-                email: None,
-                uri: None,
-            });
+            feed.authors.push(Person::from_name(text));
         }
         "date" => {
             // dc:date → updated (if not already set)
@@ -55,11 +51,7 @@ pub fn handle_feed_element(element: &str, text: &str, feed: &mut FeedMeta) {
         }
         "subject" => {
             // dc:subject → tags
-            feed.tags.push(Tag {
-                term: text.to_string(),
-                scheme: None,
-                label: None,
-            });
+            feed.tags.push(Tag::new(text));
         }
         "description" => {
             // dc:description → subtitle (if not already set)
@@ -101,11 +93,7 @@ pub fn handle_feed_element(element: &str, text: &str, feed: &mut FeedMeta) {
         }
         "contributor" => {
             // dc:contributor → contributors
-            feed.contributors.push(Person {
-                name: Some(text.to_string()),
-                email: None,
-                uri: None,
-            });
+            feed.contributors.push(Person::from_name(text));
         }
         _ => {
             // Ignore unknown DC elements (source, type, format, coverage, etc.)
@@ -127,11 +115,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
                 entry.author = Some(text.to_string());
             }
             entry.dc_creator = Some(text.to_string());
-            entry.authors.push(Person {
-                name: Some(text.to_string()),
-                email: None,
-                uri: None,
-            });
+            entry.authors.push(Person::from_name(text));
         }
         "date" => {
             if let Some(dt) = parse_date(text) {
@@ -144,11 +128,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
         }
         "subject" => {
             entry.dc_subject.push(text.to_string());
-            entry.tags.push(Tag {
-                term: text.to_string(),
-                scheme: None,
-                label: None,
-            });
+            entry.tags.push(Tag::new(text));
         }
         "description" => {
             if entry.summary.is_none() {
@@ -166,11 +146,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
             }
         }
         "contributor" => {
-            entry.contributors.push(Person {
-                name: Some(text.to_string()),
-                email: None,
-                uri: None,
-            });
+            entry.contributors.push(Person::from_name(text));
         }
         "rights" => {
             entry.dc_rights = Some(text.to_string());

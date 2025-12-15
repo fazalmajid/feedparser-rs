@@ -101,6 +101,74 @@ impl Entry {
             ..Default::default()
         }
     }
+
+    /// Sets title field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, TextConstruct};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_title(TextConstruct::text("Great Article"));
+    /// assert_eq!(entry.title.as_deref(), Some("Great Article"));
+    /// ```
+    #[inline]
+    pub fn set_title(&mut self, mut text: TextConstruct) {
+        self.title = Some(std::mem::take(&mut text.value));
+        self.title_detail = Some(text);
+    }
+
+    /// Sets summary field with `TextConstruct`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, TextConstruct};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_summary(TextConstruct::text("A summary"));
+    /// assert_eq!(entry.summary.as_deref(), Some("A summary"));
+    /// ```
+    #[inline]
+    pub fn set_summary(&mut self, mut text: TextConstruct) {
+        self.summary = Some(std::mem::take(&mut text.value));
+        self.summary_detail = Some(text);
+    }
+
+    /// Sets author field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, Person};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_author(Person::from_name("Jane Doe"));
+    /// assert_eq!(entry.author.as_deref(), Some("Jane Doe"));
+    /// ```
+    #[inline]
+    pub fn set_author(&mut self, mut person: Person) {
+        self.author = person.name.take();
+        self.author_detail = Some(person);
+    }
+
+    /// Sets publisher field with `Person`, storing both simple and detailed versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs_core::{Entry, Person};
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_publisher(Person::from_name("ACME Corp"));
+    /// assert_eq!(entry.publisher.as_deref(), Some("ACME Corp"));
+    /// ```
+    #[inline]
+    pub fn set_publisher(&mut self, mut person: Person) {
+        self.publisher = person.name.take();
+        self.publisher_detail = Some(person);
+    }
 }
 
 #[cfg(test)]
