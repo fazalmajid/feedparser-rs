@@ -82,6 +82,8 @@ impl Entry {
     /// - 1 author
     /// - 2-3 tags
     /// - 0-1 enclosures
+    /// - 2 podcast transcripts (typical for podcasts with multiple languages)
+    /// - 4 podcast persons (host, co-hosts, guests)
     ///
     /// # Examples
     ///
@@ -102,8 +104,8 @@ impl Entry {
             dc_subject: Vec::with_capacity(2),
             media_thumbnails: Vec::with_capacity(1),
             media_content: Vec::with_capacity(1),
-            podcast_transcripts: Vec::with_capacity(1),
-            podcast_persons: Vec::with_capacity(2),
+            podcast_transcripts: Vec::with_capacity(2),
+            podcast_persons: Vec::with_capacity(4),
             ..Default::default()
         }
     }

@@ -403,39 +403,77 @@ pub struct Entry {
 
 impl From<CoreEntry> for Entry {
     fn from(core: CoreEntry) -> Self {
+        // Pre-allocate Vec capacity to avoid reallocations
+        let links_cap = core.links.len();
+        let content_cap = core.content.len();
+        let authors_cap = core.authors.len();
+        let contributors_cap = core.contributors.len();
+        let tags_cap = core.tags.len();
+        let enclosures_cap = core.enclosures.len();
+        let transcripts_cap = core.podcast_transcripts.len();
+        let persons_cap = core.podcast_persons.len();
+
         Self {
             id: core.id,
             title: core.title,
             title_detail: core.title_detail.map(TextConstruct::from),
             link: core.link,
-            links: core.links.into_iter().map(Link::from).collect(),
+            links: {
+                let mut v = Vec::with_capacity(links_cap);
+                v.extend(core.links.into_iter().map(Link::from));
+                v
+            },
             summary: core.summary,
             summary_detail: core.summary_detail.map(TextConstruct::from),
-            content: core.content.into_iter().map(Content::from).collect(),
+            content: {
+                let mut v = Vec::with_capacity(content_cap);
+                v.extend(core.content.into_iter().map(Content::from));
+                v
+            },
             published: core.published.map(|dt| dt.timestamp_millis()),
             updated: core.updated.map(|dt| dt.timestamp_millis()),
             created: core.created.map(|dt| dt.timestamp_millis()),
             expired: core.expired.map(|dt| dt.timestamp_millis()),
             author: core.author,
             author_detail: core.author_detail.map(Person::from),
-            authors: core.authors.into_iter().map(Person::from).collect(),
-            contributors: core.contributors.into_iter().map(Person::from).collect(),
+            authors: {
+                let mut v = Vec::with_capacity(authors_cap);
+                v.extend(core.authors.into_iter().map(Person::from));
+                v
+            },
+            contributors: {
+                let mut v = Vec::with_capacity(contributors_cap);
+                v.extend(core.contributors.into_iter().map(Person::from));
+                v
+            },
             publisher: core.publisher,
             publisher_detail: core.publisher_detail.map(Person::from),
-            tags: core.tags.into_iter().map(Tag::from).collect(),
-            enclosures: core.enclosures.into_iter().map(Enclosure::from).collect(),
+            tags: {
+                let mut v = Vec::with_capacity(tags_cap);
+                v.extend(core.tags.into_iter().map(Tag::from));
+                v
+            },
+            enclosures: {
+                let mut v = Vec::with_capacity(enclosures_cap);
+                v.extend(core.enclosures.into_iter().map(Enclosure::from));
+                v
+            },
             comments: core.comments,
             source: core.source.map(Source::from),
-            podcast_transcripts: core
-                .podcast_transcripts
-                .into_iter()
-                .map(PodcastTranscript::from)
-                .collect(),
-            podcast_persons: core
-                .podcast_persons
-                .into_iter()
-                .map(PodcastPerson::from)
-                .collect(),
+            podcast_transcripts: {
+                let mut v = Vec::with_capacity(transcripts_cap);
+                v.extend(
+                    core.podcast_transcripts
+                        .into_iter()
+                        .map(PodcastTranscript::from),
+                );
+                v
+            },
+            podcast_persons: {
+                let mut v = Vec::with_capacity(persons_cap);
+                v.extend(core.podcast_persons.into_iter().map(PodcastPerson::from));
+                v
+            },
         }
     }
 }
