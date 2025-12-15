@@ -26,5 +26,9 @@
 mod client;
 mod response;
 
+/// URL validation module for SSRF protection
+pub mod validation;
+
 pub use client::FeedHttpClient;
 pub use response::FeedHttpResponse;
+pub use validation::validate_url;

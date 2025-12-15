@@ -36,6 +36,8 @@ pub fn handle_feed_element(element: &str, text: &str, feed: &mut FeedMeta) {
             if feed.author.is_none() {
                 feed.author = Some(text.to_string());
             }
+            // Store in dc_creator field
+            feed.dc_creator = Some(text.to_string());
             // Also add to authors list
             feed.authors.push(Person {
                 name: Some(text.to_string()),
@@ -70,12 +72,14 @@ pub fn handle_feed_element(element: &str, text: &str, feed: &mut FeedMeta) {
             if feed.publisher.is_none() {
                 feed.publisher = Some(text.to_string());
             }
+            feed.dc_publisher = Some(text.to_string());
         }
         "rights" => {
             // dc:rights → rights (if not already set)
             if feed.rights.is_none() {
                 feed.rights = Some(text.to_string());
             }
+            feed.dc_rights = Some(text.to_string());
         }
         "title" => {
             // dc:title → title (fallback)
@@ -122,6 +126,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
             if entry.author.is_none() {
                 entry.author = Some(text.to_string());
             }
+            entry.dc_creator = Some(text.to_string());
             entry.authors.push(Person {
                 name: Some(text.to_string()),
                 email: None,
@@ -130,6 +135,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
         }
         "date" => {
             if let Some(dt) = parse_date(text) {
+                entry.dc_date = Some(dt);
                 // Prefer published over updated for entries
                 if entry.published.is_none() {
                     entry.published = Some(dt);
@@ -137,6 +143,7 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
             }
         }
         "subject" => {
+            entry.dc_subject.push(text.to_string());
             entry.tags.push(Tag {
                 term: text.to_string(),
                 scheme: None,
@@ -164,6 +171,9 @@ pub fn handle_entry_element(element: &str, text: &str, entry: &mut Entry) {
                 email: None,
                 uri: None,
             });
+        }
+        "rights" => {
+            entry.dc_rights = Some(text.to_string());
         }
         _ => {
             // Ignore unknown DC elements

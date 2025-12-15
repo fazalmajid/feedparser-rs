@@ -1,5 +1,5 @@
 use super::{
-    common::{Content, Enclosure, Link, Person, Source, Tag, TextConstruct},
+    common::{Content, Enclosure, Link, MediaContent, MediaThumbnail, Person, Source, Tag, TextConstruct},
     podcast::ItunesEntryMeta,
 };
 use chrono::{DateTime, Utc};
@@ -53,6 +53,18 @@ pub struct Entry {
     pub source: Option<Source>,
     /// iTunes episode metadata (if present)
     pub itunes: Option<ItunesEntryMeta>,
+    /// Dublin Core creator (author fallback)
+    pub dc_creator: Option<String>,
+    /// Dublin Core date (publication date fallback)
+    pub dc_date: Option<DateTime<Utc>>,
+    /// Dublin Core subjects (tags)
+    pub dc_subject: Vec<String>,
+    /// Dublin Core rights (copyright)
+    pub dc_rights: Option<String>,
+    /// Media RSS thumbnails
+    pub media_thumbnails: Vec<MediaThumbnail>,
+    /// Media RSS content items
+    pub media_content: Vec<MediaContent>,
 }
 
 impl Entry {
@@ -81,6 +93,9 @@ impl Entry {
             contributors: Vec::with_capacity(0),
             tags: Vec::with_capacity(3),
             enclosures: Vec::with_capacity(1),
+            dc_subject: Vec::with_capacity(2),
+            media_thumbnails: Vec::with_capacity(1),
+            media_content: Vec::with_capacity(1),
             ..Default::default()
         }
     }

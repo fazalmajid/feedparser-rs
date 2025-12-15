@@ -30,6 +30,8 @@ http = ["dep:reqwest"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
+mockito.workspace = true
+flate2.workspace = true
 
 [[bench]]
 name = "parsing"

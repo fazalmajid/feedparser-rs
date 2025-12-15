@@ -62,6 +62,12 @@ pub struct FeedMeta {
     pub itunes: Option<ItunesFeedMeta>,
     /// Podcast 2.0 namespace metadata (if present)
     pub podcast: Option<PodcastMeta>,
+    /// Dublin Core creator (author fallback)
+    pub dc_creator: Option<String>,
+    /// Dublin Core publisher
+    pub dc_publisher: Option<String>,
+    /// Dublin Core rights (copyright)
+    pub dc_rights: Option<String>,
 }
 
 /// Parsed feed result

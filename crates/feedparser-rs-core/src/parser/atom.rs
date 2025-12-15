@@ -3,9 +3,10 @@
 use crate::{
     ParserLimits,
     error::{FeedError, Result},
+    namespace::{content, dublin_core, media_rss},
     types::{
-        Content, Entry, FeedVersion, Generator, Link, ParsedFeed, Person, Source, Tag,
-        TextConstruct, TextType,
+        Content, Entry, FeedVersion, Generator, Link, MediaContent, MediaThumbnail, ParsedFeed,
+        Person, Source, Tag, TextConstruct, TextType,
     },
     util::parse_date,
 };
@@ -114,7 +115,8 @@ fn parse_feed_element(
                 }
 
                 let element = e.to_owned();
-                match element.local_name().as_ref() {
+                // Use name() instead of local_name() to preserve namespace prefixes
+                match element.name().as_ref() {
                     b"title" if !is_empty => {
                         let text = parse_text_construct(reader, &mut buf, &element, limits)?;
                         feed.feed.title = Some(text.value.clone());
@@ -212,8 +214,32 @@ fn parse_feed_element(
                             }
                         }
                     }
-                    _ => {
-                        if !is_empty {
+                    tag => {
+                        // Check for namespace elements
+                        let handled = if let Some(dc_element) = is_dc_tag(tag) {
+                            let dc_elem = dc_element.to_string();
+                            if !is_empty {
+                                let text = read_text(reader, &mut buf, limits)?;
+                                dublin_core::handle_feed_element(&dc_elem, &text, &mut feed.feed);
+                            }
+                            true
+                        } else if let Some(_content_element) = is_content_tag(tag) {
+                            // Content namespace - typically entry-level
+                            if !is_empty {
+                                skip_element(reader, &mut buf, limits, *depth)?;
+                            }
+                            true
+                        } else if let Some(_media_element) = is_media_tag(tag) {
+                            // Media RSS - typically entry-level
+                            if !is_empty {
+                                skip_element(reader, &mut buf, limits, *depth)?;
+                            }
+                            true
+                        } else {
+                            false
+                        };
+
+                        if !handled && !is_empty {
                             skip_element(reader, &mut buf, limits, *depth)?;
                         }
                     }
@@ -258,7 +284,8 @@ fn parse_entry(
                 }
 
                 let element = e.to_owned();
-                match element.local_name().as_ref() {
+                // Use name() instead of local_name() to preserve namespace prefixes
+                match element.name().as_ref() {
                     b"title" if !is_empty => {
                         let text = parse_text_construct(reader, buf, &element, limits)?;
                         entry.title = Some(text.value.clone());
@@ -334,8 +361,61 @@ fn parse_entry(
                             entry.source = Some(source);
                         }
                     }
-                    _ => {
-                        if !is_empty {
+                    tag => {
+                        // Check for namespace elements
+                        let handled = if let Some(dc_element) = is_dc_tag(tag) {
+                            let dc_elem = dc_element.to_string();
+                            if !is_empty {
+                                let text = read_text(reader, buf, limits)?;
+                                dublin_core::handle_entry_element(&dc_elem, &text, &mut entry);
+                            }
+                            true
+                        } else if let Some(content_element) = is_content_tag(tag) {
+                            let content_elem = content_element.to_string();
+                            if !is_empty {
+                                let text = read_text(reader, buf, limits)?;
+                                content::handle_entry_element(&content_elem, &text, &mut entry);
+                            }
+                            true
+                        } else if let Some(media_element) = is_media_tag(tag) {
+                            // Media RSS namespace
+                            if media_element == "thumbnail" {
+                                if let Some(thumbnail) = MediaThumbnail::from_attributes(
+                                    element.attributes().flatten(),
+                                    limits.max_attribute_length,
+                                ) {
+                                    entry
+                                        .media_thumbnails
+                                        .try_push_limited(thumbnail, limits.max_enclosures);
+                                }
+                                if !is_empty {
+                                    skip_element(reader, buf, limits, *depth)?;
+                                }
+                            } else if media_element == "content" {
+                                if let Some(media) = MediaContent::from_attributes(
+                                    element.attributes().flatten(),
+                                    limits.max_attribute_length,
+                                ) {
+                                    entry
+                                        .media_content
+                                        .try_push_limited(media, limits.max_enclosures);
+                                }
+                                if !is_empty {
+                                    skip_element(reader, buf, limits, *depth)?;
+                                }
+                            } else {
+                                let media_elem = media_element.to_string();
+                                if !is_empty {
+                                    let text = read_text(reader, buf, limits)?;
+                                    media_rss::handle_entry_element(&media_elem, &text, &mut entry);
+                                }
+                            }
+                            true
+                        } else {
+                            false
+                        };
+
+                        if !handled && !is_empty {
                             skip_element(reader, buf, limits, *depth)?;
                         }
                     }
@@ -509,7 +589,8 @@ fn parse_atom_source(
                 }
 
                 let element = e.to_owned();
-                match element.local_name().as_ref() {
+                // Use name() instead of local_name() to preserve namespace prefixes
+                match element.name().as_ref() {
                     b"title" => title = Some(read_text(reader, buf, limits)?),
                     b"link" => {
                         if let Some(l) = Link::from_attributes(
@@ -535,6 +616,36 @@ fn parse_atom_source(
     }
 
     Ok(Source { title, link, id })
+}
+
+/// Check if element name matches a Dublin Core namespace tag
+#[inline]
+fn is_dc_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"dc:") {
+        std::str::from_utf8(&name[3..]).ok()
+    } else {
+        None
+    }
+}
+
+/// Check if element name matches a Content namespace tag
+#[inline]
+fn is_content_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"content:") {
+        std::str::from_utf8(&name[8..]).ok()
+    } else {
+        None
+    }
+}
+
+/// Check if element name matches a Media RSS namespace tag
+#[inline]
+fn is_media_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"media:") {
+        std::str::from_utf8(&name[6..]).ok()
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

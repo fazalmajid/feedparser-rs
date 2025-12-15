@@ -1,4 +1,5 @@
 use super::response::FeedHttpResponse;
+use super::validation::validate_url;
 use crate::error::{FeedError, Result};
 use reqwest::blocking::{Client, Response};
 use reqwest::header::{
@@ -83,6 +84,10 @@ impl FeedHttpClient {
         modified: Option<&str>,
         extra_headers: Option<&HeaderMap>,
     ) -> Result<FeedHttpResponse> {
+        // Validate URL to prevent SSRF attacks
+        let validated_url = validate_url(url)?;
+        let url_str = validated_url.as_str();
+
         let mut headers = HeaderMap::new();
 
         // Standard headers
@@ -131,14 +136,14 @@ impl FeedHttpClient {
 
         let response =
             self.client
-                .get(url)
+                .get(url_str)
                 .headers(headers)
                 .send()
                 .map_err(|e| FeedError::Http {
                     message: format!("HTTP request failed: {e}"),
                 })?;
 
-        Self::build_response(response, url)
+        Self::build_response(response, url_str)
     }
 
     /// Converts `reqwest` Response to `FeedHttpResponse`
@@ -213,5 +218,52 @@ mod tests {
         let timeout = Duration::from_secs(60);
         let client = FeedHttpClient::new().unwrap().with_timeout(timeout);
         assert_eq!(client.timeout, timeout);
+    }
+
+    // SSRF protection tests
+    #[test]
+    fn test_reject_localhost_url() {
+        let client = FeedHttpClient::new().unwrap();
+        let result = client.get("http://localhost/feed.xml", None, None, None);
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        assert!(err_msg.contains("Localhost domain not allowed"));
+    }
+
+    #[test]
+    fn test_reject_private_ip() {
+        let client = FeedHttpClient::new().unwrap();
+        let result = client.get("http://192.168.1.1/feed.xml", None, None, None);
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        assert!(err_msg.contains("Private IP address not allowed"));
+    }
+
+    #[test]
+    fn test_reject_metadata_endpoint() {
+        let client = FeedHttpClient::new().unwrap();
+        let result = client.get("http://169.254.169.254/latest/meta-data/", None, None, None);
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        // Should be rejected as AWS metadata endpoint or link-local
+        assert!(err_msg.contains("metadata") || err_msg.contains("Link-local"));
+    }
+
+    #[test]
+    fn test_reject_file_scheme() {
+        let client = FeedHttpClient::new().unwrap();
+        let result = client.get("file:///etc/passwd", None, None, None);
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        assert!(err_msg.contains("Unsupported URL scheme"));
+    }
+
+    #[test]
+    fn test_reject_internal_domain() {
+        let client = FeedHttpClient::new().unwrap();
+        let result = client.get("http://server.local/feed.xml", None, None, None);
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        assert!(err_msg.contains("Internal domain TLD not allowed"));
     }
 }
