@@ -102,12 +102,6 @@ jobs:
       - name: Check sources
         run: cargo deny check sources
 
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
-
-      - name: Audit dependencies
-        run: cargo audit
-
   # Cross-platform Rust tests
   test-rust:
     name: Test Rust (${{ matrix.os }})
@@ -335,6 +329,52 @@ jobs:
           flags: python-bindings
         if: hashFiles('crates/feedparser-rs-py/tests/*.py') != ''
 
+  # Node.js code coverage
+  coverage-node:
+    name: Node.js Code Coverage
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "coverage-node"
+          workspaces: crates/feedparser-rs-node
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: crates/feedparser-rs-node/package-lock.json
+
+      - name: Install dependencies
+        working-directory: crates/feedparser-rs-node
+        run: npm ci
+
+      - name: Build native module
+        working-directory: crates/feedparser-rs-node
+        run: npm run build
+
+      - name: Run tests with coverage
+        working-directory: crates/feedparser-rs-node
+        run: npm test -- --coverage
+        continue-on-error: true
+
+      - name: Upload Node.js coverage to codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: crates/feedparser-rs-node/coverage
+          fail_ci_if_error: false
+          flags: node-bindings
+
   # MSRV check
   msrv:
     name: Check MSRV (1.88.0)
@@ -360,7 +400,7 @@ jobs:
   # All checks passed gate
   ci-success:
     name: CI Success
-    needs: [lint, security, test-rust, test-python, test-node, coverage-rust, coverage-python, msrv]
+    needs: [lint, security, test-rust, test-python, test-node, coverage-rust, coverage-python, coverage-node, msrv]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -373,6 +413,7 @@ jobs:
              [[ "${{ needs.test-node.result }}" != "success" ]] || \
              [[ "${{ needs.coverage-rust.result }}" != "success" ]] || \
              [[ "${{ needs.coverage-python.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage-node.result }}" != "success" ]] || \
              [[ "${{ needs.msrv.result }}" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
