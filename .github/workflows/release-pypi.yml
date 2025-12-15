@@ -57,14 +57,6 @@ jobs:
       - name: Install maturin
         run: pip install maturin
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -101,9 +93,6 @@ jobs:
           name: wheels-${{ matrix.target }}
           path: crates/feedparser-rs-py/dist/*.whl
           retention-days: 7
-
-      - name: sccache stats
-        run: sccache --show-stats
 
   # Build source distribution
   build-sdist:

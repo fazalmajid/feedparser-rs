@@ -5,22 +5,12 @@
 version = 2
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# Deny crates with security vulnerabilities
-vulnerability = "deny"
-# Warn about unmaintained crates
-unmaintained = "warn"
-# Warn about yanked crates
-yanked = "warn"
-# Warn about security notices
-notice = "warn"
 # List of advisory IDs to ignore
 ignore = []
 
 [licenses]
 version = 2
-# Deny crates without a license
-unlicensed = "deny"
-# List of allowed licenses
+# List of allowed licenses (SPDX identifiers)
 allow = [
     "MIT",
     "Apache-2.0",
@@ -31,13 +21,12 @@ allow = [
     "Unicode-DFS-2016",
     "0BSD",
     "CC0-1.0",
+    "Zlib",
+    "Unicode-3.0",
+    "MPL-2.0",  # Used by ammonia's dependencies (cssparser, etc.)
 ]
-# Warn about copyleft licenses
-copyleft = "warn"
-# Allow blanket crates.io and git sources
-allow-osi-fsf-free = "both"
-# Deny everything else
-default = "deny"
+# Confidence threshold for license detection
+confidence-threshold = 0.8
 
 # Clarifications for licenses that are complex
 [[licenses.clarify]]
@@ -50,19 +39,15 @@ license-files = [
 [bans]
 # Warn about multiple versions of the same crate
 multiple-versions = "warn"
-# Allow wildcard dependencies in dev-dependencies
+# Allow wildcard dependencies
 wildcards = "allow"
 # Highlight all duplicate versions
 highlight = "all"
 # Allow private workspace crates
 workspace-default-features = "allow"
 external-default-features = "allow"
-# Allow build dependencies to have different versions
-allow-build-dependencies = true
-
 # Skip certain crates from multiple version checks
 skip = []
-
 # Skip certain crates from being checked at all
 skip-tree = []
 

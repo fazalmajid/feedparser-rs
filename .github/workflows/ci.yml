@@ -38,14 +38,6 @@ jobs:
         with:
           components: rustfmt
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -78,9 +70,6 @@ jobs:
         run: cargo doc --no-deps --all-features --workspace --exclude feedparser-rs-py
         env:
           RUSTDOCFLAGS: "-D warnings"
-
-      - name: sccache stats
-        run: sccache --show-stats
 
   # Security audit
   security:
@@ -136,14 +125,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
@@ -158,9 +139,6 @@ jobs:
 
       - name: Run doctests
         run: cargo test --doc --all-features --workspace --exclude feedparser-rs-py
-
-      - name: sccache stats
-        run: sccache --show-stats
 
   # Python bindings tests
   test-python:
@@ -194,14 +172,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -230,9 +200,6 @@ jobs:
       - name: Test Python import
         run: python -c "import feedparser_rs; print(f'feedparser-rs version loaded successfully')"
 
-      - name: sccache stats
-        run: sccache --show-stats
-
   # Node.js bindings tests
   test-node:
     name: Test Node.js (${{ matrix.os }} - Node ${{ matrix.node }})
@@ -254,14 +221,6 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -288,9 +247,6 @@ jobs:
       - name: Test
         working-directory: crates/feedparser-rs-node
         run: npm test
-
-      - name: sccache stats
-        run: sccache --show-stats
 
   # Rust code coverage
   coverage-rust:
@@ -344,14 +300,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -401,14 +349,6 @@ jobs:
         with:
           toolchain: "1.88.0"
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
-      - name: Configure sccache
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -416,9 +356,6 @@ jobs:
 
       - name: Check with MSRV
         run: cargo +1.88.0 check --all-features --workspace --exclude feedparser-rs-py
-
-      - name: sccache stats
-        run: sccache --show-stats
 
   # All checks passed gate
   ci-success:
