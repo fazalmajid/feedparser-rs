@@ -184,7 +184,11 @@ jobs:
 
       - name: Build Python wheel
         working-directory: crates/feedparser-rs-py
-        run: maturin develop --release
+        run: maturin build --release --out dist
+
+      - name: Install wheel
+        working-directory: crates/feedparser-rs-py
+        run: pip install dist/*.whl
 
       - name: Run Python tests
         working-directory: crates/feedparser-rs-py
@@ -309,9 +313,13 @@ jobs:
       - name: Install dependencies
         run: pip install maturin pytest pytest-cov
 
-      - name: Build Python module
+      - name: Build Python wheel
         working-directory: crates/feedparser-rs-py
-        run: maturin develop --release
+        run: maturin build --release --out dist
+
+      - name: Install wheel
+        working-directory: crates/feedparser-rs-py
+        run: pip install dist/*.whl
 
       - name: Run tests with coverage
         working-directory: crates/feedparser-rs-py
