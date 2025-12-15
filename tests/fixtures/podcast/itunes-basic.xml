@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Example Podcast</title>
+    <link>https://example.com/podcast</link>
+    <description>A great podcast about technology</description>
+    <language>en-us</language>
+
+    <!-- iTunes feed-level metadata -->
+    <itunes:author>John Doe</itunes:author>
+    <itunes:owner>
+      <itunes:name>Jane Smith</itunes:name>
+      <itunes:email>contact@example.com</itunes:email>
+    </itunes:owner>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:category text="Technology">
+      <itunes:category text="Software"/>
+    </itunes:category>
+    <itunes:image href="https://example.com/podcast-cover.jpg"/>
+    <itunes:keywords>rust,programming,tech</itunes:keywords>
+    <itunes:type>episodic</itunes:type>
+
+    <!-- Episode 1 -->
+    <item>
+      <title>Episode 1: Introduction to Rust</title>
+      <link>https://example.com/podcast/ep1</link>
+      <description>Learn about Rust programming language basics</description>
+      <pubDate>Mon, 15 Jan 2024 10:00:00 GMT</pubDate>
+      <guid isPermaLink="true">https://example.com/podcast/ep1</guid>
+      <enclosure url="https://example.com/podcast/ep1.mp3" length="24986239" type="audio/mpeg"/>
+
+      <!-- iTunes episode metadata -->
+      <itunes:title>Introduction to Rust</itunes:title>
+      <itunes:author>John Doe</itunes:author>
+      <itunes:duration>00:42:30</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+      <itunes:episode>1</itunes:episode>
+      <itunes:season>1</itunes:season>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:image href="https://example.com/podcast/ep1-cover.jpg"/>
+    </item>
+
+    <!-- Episode 2 -->
+    <item>
+      <title>Episode 2: Advanced Patterns</title>
+      <link>https://example.com/podcast/ep2</link>
+      <description>Deep dive into advanced Rust patterns</description>
+      <pubDate>Mon, 22 Jan 2024 10:00:00 GMT</pubDate>
+      <guid isPermaLink="true">https://example.com/podcast/ep2</guid>
+      <enclosure url="https://example.com/podcast/ep2.mp3" length="28123456" type="audio/mpeg"/>
+
+      <!-- iTunes episode metadata -->
+      <itunes:title>Advanced Patterns</itunes:title>
+      <itunes:author>John Doe</itunes:author>
+      <itunes:duration>01:15:45</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+      <itunes:episode>2</itunes:episode>
+      <itunes:season>1</itunes:season>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+  </channel>
+</rss>

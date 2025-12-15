@@ -106,7 +106,9 @@ fn parse_channel(
                     )));
                 }
 
-                match e.local_name().as_ref() {
+                // Use full qualified name to distinguish standard RSS tags from namespaced tags
+                // (e.g., <image> vs <itunes:image>, <category> vs <itunes:category>)
+                match e.name().as_ref() {
                     b"title" => {
                         feed.feed.title = Some(read_text(reader, &mut buf, limits)?);
                     }
@@ -238,7 +240,8 @@ fn parse_channel(
                                     );
                                 }
                             }
-                            skip_element(reader, &mut buf, limits, *depth)?;
+                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
+                            //       and calling skip_element would consume the next tag's end event
                             true
                         } else if is_itunes_tag(tag, b"keywords") {
                             let text = read_text(reader, &mut buf, limits)?;
@@ -326,7 +329,8 @@ fn parse_item(
                     )));
                 }
 
-                match e.local_name().as_ref() {
+                // Use full qualified name to distinguish standard RSS tags from namespaced tags
+                match e.name().as_ref() {
                     b"title" => {
                         entry.title = Some(read_text(reader, buf, limits)?);
                     }
@@ -422,7 +426,7 @@ fn parse_item(
                                     );
                                 }
                             }
-                            skip_element(reader, buf, limits, *depth)?;
+                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
                             true
                         } else if is_itunes_tag(tag, b"episode") {
                             let text = read_text(reader, buf, limits)?;
@@ -588,6 +592,12 @@ fn parse_source(
 /// iTunes tags can appear as either:
 /// - `itunes:tag` (with namespace prefix)
 /// - Just `tag` in the iTunes namespace URI
+///
+/// The fallback `name == tag` is intentional and safe because:
+/// 1. iTunes namespace elements SHOULD have a prefix (e.g., `itunes:author`)
+/// 2. Fallback exists for feeds that don't use the prefix but declare iTunes namespace
+/// 3. Match order in calling code ensures standard RSS elements (title, link, etc.) are
+///    handled first in the outer match statement, preventing incorrect matches
 #[inline]
 fn is_itunes_tag(name: &[u8], tag: &[u8]) -> bool {
     // Check for "itunes:tag" pattern
