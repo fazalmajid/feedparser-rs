@@ -147,10 +147,77 @@ impl PyParserLimits {
             max_tags: self.max_tags,
             max_content_blocks: self.max_content_blocks,
             max_enclosures: self.max_enclosures,
-            max_namespaces: 100,     // Use default
-            max_nesting_depth: 100,  // Use default
+            max_namespaces: 100,               // Use default
+            max_nesting_depth: 100,            // Use default
             max_text_length: 10 * 1024 * 1024, // 10 MB
             max_attribute_length: 64 * 1024,   // 64 KB
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parser_limits_defaults() {
+        let limits = PyParserLimits::new(100_000_000, 10_000, 100, 50, 20, 20, 100, 10, 20);
+
+        assert_eq!(limits.max_feed_size_bytes(), 100_000_000);
+        assert_eq!(limits.max_entries(), 10_000);
+        assert_eq!(limits.max_links_per_feed(), 100);
+        assert_eq!(limits.max_links_per_entry(), 50);
+        assert_eq!(limits.max_authors(), 20);
+        assert_eq!(limits.max_contributors(), 20);
+        assert_eq!(limits.max_tags(), 100);
+        assert_eq!(limits.max_content_blocks(), 10);
+        assert_eq!(limits.max_enclosures(), 20);
+    }
+
+    #[test]
+    fn test_parser_limits_custom() {
+        let limits = PyParserLimits::new(50_000_000, 5_000, 50, 25, 10, 10, 50, 5, 10);
+
+        assert_eq!(limits.max_feed_size_bytes(), 50_000_000);
+        assert_eq!(limits.max_entries(), 5_000);
+        assert_eq!(limits.max_links_per_feed(), 50);
+        assert_eq!(limits.max_links_per_entry(), 25);
+        assert_eq!(limits.max_authors(), 10);
+        assert_eq!(limits.max_contributors(), 10);
+        assert_eq!(limits.max_tags(), 50);
+        assert_eq!(limits.max_content_blocks(), 5);
+        assert_eq!(limits.max_enclosures(), 10);
+    }
+
+    #[test]
+    fn test_to_core_limits() {
+        let py_limits = PyParserLimits::new(50_000_000, 5_000, 50, 25, 10, 10, 50, 5, 10);
+
+        let core_limits = py_limits.to_core_limits();
+
+        assert_eq!(core_limits.max_feed_size_bytes, 50_000_000);
+        assert_eq!(core_limits.max_entries, 5_000);
+        assert_eq!(core_limits.max_links_per_feed, 50);
+        assert_eq!(core_limits.max_links_per_entry, 25);
+        assert_eq!(core_limits.max_authors, 10);
+        assert_eq!(core_limits.max_contributors, 10);
+        assert_eq!(core_limits.max_tags, 50);
+        assert_eq!(core_limits.max_content_blocks, 5);
+        assert_eq!(core_limits.max_enclosures, 10);
+        // Check default values
+        assert_eq!(core_limits.max_namespaces, 100);
+        assert_eq!(core_limits.max_nesting_depth, 100);
+        assert_eq!(core_limits.max_text_length, 10 * 1024 * 1024);
+        assert_eq!(core_limits.max_attribute_length, 64 * 1024);
+    }
+
+    #[test]
+    fn test_repr() {
+        let limits = PyParserLimits::new(100_000_000, 10_000, 100, 50, 20, 20, 100, 10, 20);
+
+        let repr = limits.__repr__();
+        assert!(repr.contains("ParserLimits"));
+        assert!(repr.contains("100000000"));
+        assert!(repr.contains("10000"));
     }
 }

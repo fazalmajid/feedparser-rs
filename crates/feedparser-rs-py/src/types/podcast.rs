@@ -144,10 +144,7 @@ impl PyItunesEntryMeta {
 
     fn __repr__(&self) -> String {
         if let (Some(season), Some(episode)) = (self.inner.season, self.inner.episode) {
-            format!(
-                "ItunesEntryMeta(season={}, episode={})",
-                season, episode
-            )
+            format!("ItunesEntryMeta(season={}, episode={})", season, episode)
         } else {
             "ItunesEntryMeta()".to_string()
         }
@@ -219,7 +216,10 @@ impl PyItunesCategory {
 
     fn __repr__(&self) -> String {
         if let Some(sub) = &self.inner.subcategory {
-            format!("ItunesCategory(text='{}', subcategory='{}')", self.inner.text, sub)
+            format!(
+                "ItunesCategory(text='{}', subcategory='{}')",
+                self.inner.text, sub
+            )
         } else {
             format!("ItunesCategory(text='{}')", self.inner.text)
         }

@@ -87,8 +87,8 @@ import feedparser_rs
 limits = feedparser_rs.ParserLimits(
     max_feed_size_bytes=50_000_000,  # 50 MB
     max_entries=5_000,
-    max_authors_per_entry=100,
-    max_links_per_entry=100,
+    max_authors=20,              # Max authors per feed/entry
+    max_links_per_entry=50,      # Max links per entry
 )
 
 d = feedparser_rs.parse_with_limits(feed_data, limits)

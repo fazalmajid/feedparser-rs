@@ -55,57 +55,8 @@ pub fn optional_datetime_to_struct_time(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::TimeZone;
-
-    #[test]
-    fn test_datetime_to_struct_time() {
-        pyo3::prepare_freethreaded_python();
-
-        Python::with_gil(|py| {
-            // 2025-12-15 14:30:00 UTC (Monday)
-            let dt = Utc.with_ymd_and_hms(2025, 12, 15, 14, 30, 0).unwrap();
-            let st = datetime_to_struct_time(py, &dt).unwrap();
-
-            // Verify it's a time.struct_time
-            let time_module = py.import("time").unwrap();
-            let struct_time_type = time_module.getattr("struct_time").unwrap();
-            assert!(st.bind(py).is_instance(&struct_time_type).unwrap());
-
-            // Extract fields
-            let st_obj = st.bind(py);
-            assert_eq!(st_obj.getattr("tm_year").unwrap().extract::<i32>().unwrap(), 2025);
-            assert_eq!(st_obj.getattr("tm_mon").unwrap().extract::<i32>().unwrap(), 12);
-            assert_eq!(st_obj.getattr("tm_mday").unwrap().extract::<i32>().unwrap(), 15);
-            assert_eq!(st_obj.getattr("tm_hour").unwrap().extract::<i32>().unwrap(), 14);
-            assert_eq!(st_obj.getattr("tm_min").unwrap().extract::<i32>().unwrap(), 30);
-            assert_eq!(st_obj.getattr("tm_sec").unwrap().extract::<i32>().unwrap(), 0);
-            assert_eq!(st_obj.getattr("tm_wday").unwrap().extract::<i32>().unwrap(), 0); // Monday
-            assert_eq!(st_obj.getattr("tm_isdst").unwrap().extract::<i32>().unwrap(), 0); // UTC
-        });
-    }
-
-    #[test]
-    fn test_optional_datetime_none() {
-        pyo3::prepare_freethreaded_python();
-
-        Python::with_gil(|py| {
-            let dt: Option<DateTime<Utc>> = None;
-            let result = optional_datetime_to_struct_time(py, &dt).unwrap();
-            assert!(result.is_none());
-        });
-    }
-
-    #[test]
-    fn test_optional_datetime_some() {
-        pyo3::prepare_freethreaded_python();
-
-        Python::with_gil(|py| {
-            let dt = Some(Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap());
-            let result = optional_datetime_to_struct_time(py, &dt).unwrap();
-            assert!(result.is_some());
-        });
-    }
-}
+// NOTE: Datetime conversion to Python time.struct_time is tested via pytest
+// in tests/test_datetime.py. Rust unit tests cannot be used here because
+// cdylib crates don't link Python symbols - they're loaded at runtime by Python.
+// The deprecated APIs (prepare_freethreaded_python, Python::with_gil) would
+// fail to link in tests.

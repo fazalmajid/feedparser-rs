@@ -15,6 +15,10 @@ use types::PyParsedFeed;
 ///
 /// Drop-in replacement for Python's feedparser library with 10-100x speedup.
 /// Written in Rust with PyO3 bindings.
+///
+/// NOTE: Module is named `_feedparser_rs` (with underscore) because it's a private
+/// native module that gets re-exported through the pure Python `feedparser_rs/__init__.py`.
+/// This is the standard pattern for PyO3 projects with mixed Python/Rust code.
 #[pymodule]
 fn _feedparser_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse, m)?)?;
@@ -163,4 +167,14 @@ fn detect_format(source: &Bound<'_, PyAny>) -> PyResult<String> {
 
     let version = core::detect_format(&bytes);
     Ok(version.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    // NOTE: Most tests for this module require Python runtime (PyO3) and are
+    // located in tests/test_api.py. The parse() and parse_with_limits() functions
+    // need actual Python objects and are tested via pytest.
+    //
+    // Tests marked #[ignore] would work if run via pytest but fail in cargo test
+    // because cdylib doesn't link Python symbols at test time.
 }
