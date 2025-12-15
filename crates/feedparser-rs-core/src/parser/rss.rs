@@ -3,10 +3,11 @@
 use crate::{
     ParserLimits,
     error::{FeedError, Result},
+    namespace::{content, dublin_core, media_rss},
     types::{
         Enclosure, Entry, FeedVersion, Image, ItunesCategory, ItunesEntryMeta, ItunesFeedMeta,
-        ItunesOwner, Link, ParsedFeed, PodcastFunding, PodcastMeta, Source, Tag, TextConstruct,
-        TextType, parse_duration, parse_explicit,
+        ItunesOwner, Link, MediaContent, MediaThumbnail, ParsedFeed, PodcastFunding, PodcastMeta,
+        Source, Tag, TextConstruct, TextType, parse_duration, parse_explicit,
     },
     util::parse_date,
 };
@@ -285,6 +286,20 @@ fn parse_channel(
                                 feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
                             podcast.funding.push(PodcastFunding { url, message });
                             true
+                        } else if let Some(dc_element) = is_dc_tag(tag) {
+                            // Dublin Core namespace
+                            let dc_elem = dc_element.to_string();
+                            let text = read_text(reader, &mut buf, limits)?;
+                            dublin_core::handle_feed_element(&dc_elem, &text, &mut feed.feed);
+                            true
+                        } else if let Some(_content_element) = is_content_tag(tag) {
+                            // Content namespace - typically only used at entry level
+                            skip_element(reader, &mut buf, limits, *depth)?;
+                            true
+                        } else if let Some(_media_element) = is_media_tag(tag) {
+                            // Media RSS namespace - typically only used at entry level
+                            skip_element(reader, &mut buf, limits, *depth)?;
+                            true
                         } else {
                             false
                         };
@@ -320,7 +335,12 @@ fn parse_item(
 
     loop {
         match reader.read_event_into(buf) {
-            Ok(Event::Start(e) | Event::Empty(e)) => {
+            Ok(event @ (Event::Start(_) | Event::Empty(_))) => {
+                let is_empty = matches!(event, Event::Empty(_));
+                let (Event::Start(e) | Event::Empty(e)) = &event else {
+                    unreachable!()
+                };
+
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
@@ -378,7 +398,7 @@ fn parse_item(
                         );
                     }
                     b"enclosure" => {
-                        if let Some(enclosure) = parse_enclosure(&e, limits) {
+                        if let Some(enclosure) = parse_enclosure(e, limits) {
                             entry
                                 .enclosures
                                 .try_push_limited(enclosure, limits.max_enclosures);
@@ -451,6 +471,55 @@ fn parse_item(
                             // Parse person inline to avoid borrow conflicts
                             // Podcast 2.0 person not stored in Entry for now (no podcast field)
                             skip_element(reader, buf, limits, *depth)?;
+                            true
+                        } else if let Some(dc_element) = is_dc_tag(tag) {
+                            // Dublin Core namespace
+                            let dc_elem = dc_element.to_string();
+                            let text = read_text(reader, buf, limits)?;
+                            dublin_core::handle_entry_element(&dc_elem, &text, &mut entry);
+                            true
+                        } else if let Some(content_element) = is_content_tag(tag) {
+                            // Content namespace
+                            let content_elem = content_element.to_string();
+                            let text = read_text(reader, buf, limits)?;
+                            content::handle_entry_element(&content_elem, &text, &mut entry);
+                            true
+                        } else if let Some(media_element) = is_media_tag(tag) {
+                            // Media RSS namespace - handle both text elements and attribute-based elements
+                            if media_element == "thumbnail" {
+                                // media:thumbnail has attributes
+                                if let Some(thumbnail) = MediaThumbnail::from_attributes(
+                                    e.attributes().flatten(),
+                                    limits.max_attribute_length,
+                                ) {
+                                    entry
+                                        .media_thumbnails
+                                        .try_push_limited(thumbnail, limits.max_enclosures);
+                                }
+                                // Don't call skip_element if it's self-closing
+                                if !is_empty {
+                                    skip_element(reader, buf, limits, *depth)?;
+                                }
+                            } else if media_element == "content" {
+                                // media:content has attributes
+                                if let Some(media) = MediaContent::from_attributes(
+                                    e.attributes().flatten(),
+                                    limits.max_attribute_length,
+                                ) {
+                                    entry
+                                        .media_content
+                                        .try_push_limited(media, limits.max_enclosures);
+                                }
+                                // Don't call skip_element if it's self-closing
+                                if !is_empty {
+                                    skip_element(reader, buf, limits, *depth)?;
+                                }
+                            } else {
+                                // Other media elements (title, description, keywords, category)
+                                let media_elem = media_element.to_string();
+                                let text = read_text(reader, buf, limits)?;
+                                media_rss::handle_entry_element(&media_elem, &text, &mut entry);
+                            }
                             true
                         } else {
                             false
@@ -606,6 +675,36 @@ fn is_itunes_tag(name: &[u8], tag: &[u8]) -> bool {
     }
     // Also check for just the tag name (some feeds don't use prefix)
     name == tag
+}
+
+/// Check if element name matches a Dublin Core namespace tag
+#[inline]
+fn is_dc_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"dc:") {
+        std::str::from_utf8(&name[3..]).ok()
+    } else {
+        None
+    }
+}
+
+/// Check if element name matches a Content namespace tag
+#[inline]
+fn is_content_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"content:") {
+        std::str::from_utf8(&name[8..]).ok()
+    } else {
+        None
+    }
+}
+
+/// Check if element name matches a Media RSS namespace tag
+#[inline]
+fn is_media_tag(name: &[u8]) -> Option<&str> {
+    if name.starts_with(b"media:") {
+        std::str::from_utf8(&name[6..]).ok()
+    } else {
+        None
+    }
 }
 
 /// Parse iTunes owner from <itunes:owner> element

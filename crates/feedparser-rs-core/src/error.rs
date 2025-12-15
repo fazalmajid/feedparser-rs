@@ -23,6 +23,17 @@ pub enum FeedError {
     #[error("JSON parsing error: {0}")]
     JsonError(String),
 
+    /// HTTP error
+    #[error("HTTP error: {message}")]
+    Http {
+        /// Error message
+        message: String,
+    },
+
+    /// URL parsing error
+    #[error("URL parsing error: {0}")]
+    UrlError(String),
+
     /// Unknown error
     #[error("Unknown error: {0}")]
     Unknown(String),
@@ -46,6 +57,12 @@ impl From<serde_json::Error> for FeedError {
 impl From<std::io::Error> for FeedError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err.to_string())
+    }
+}
+
+impl From<url::ParseError> for FeedError {
+    fn from(err: url::ParseError) -> Self {
+        Self::UrlError(err.to_string())
     }
 }
 

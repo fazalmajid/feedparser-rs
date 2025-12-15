@@ -6,7 +6,8 @@ mod podcast;
 mod version;
 
 pub use common::{
-    Content, Enclosure, Generator, Image, Link, Person, Source, Tag, TextConstruct, TextType,
+    Content, Enclosure, Generator, Image, Link, MediaContent, MediaThumbnail, Person, Source, Tag,
+    TextConstruct, TextType,
 };
 pub use entry::Entry;
 pub use feed::{FeedMeta, ParsedFeed};

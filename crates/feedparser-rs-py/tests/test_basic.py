@@ -149,7 +149,7 @@ def test_parse_with_limits_exceeded():
         max_feed_size_bytes=10,  # Too small
     )
 
-    with pytest.raises(ValueError, match="Resource limit exceeded"):
+    with pytest.raises(ValueError, match="exceeds maximum"):
         feedparser_rs.parse_with_limits(xml, limits)
 
 

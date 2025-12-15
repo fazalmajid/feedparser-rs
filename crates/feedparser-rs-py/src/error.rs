@@ -11,6 +11,8 @@ pub fn convert_feed_error(err: FeedError) -> PyErr {
         }
         FeedError::EncodingError(msg) => PyValueError::new_err(format!("Encoding error: {}", msg)),
         FeedError::JsonError(msg) => PyValueError::new_err(format!("JSON parse error: {}", msg)),
+        FeedError::Http { message } => PyRuntimeError::new_err(format!("HTTP error: {}", message)),
+        FeedError::UrlError(msg) => PyValueError::new_err(format!("URL parse error: {}", msg)),
         FeedError::Unknown(msg) => PyRuntimeError::new_err(format!("Unknown error: {}", msg)),
     }
 }

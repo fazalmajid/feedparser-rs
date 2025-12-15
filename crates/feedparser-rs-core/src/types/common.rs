@@ -265,6 +265,34 @@ pub struct Source {
     pub id: Option<String>,
 }
 
+/// Media RSS thumbnail
+#[derive(Debug, Clone)]
+pub struct MediaThumbnail {
+    /// Thumbnail URL
+    pub url: String,
+    /// Thumbnail width in pixels
+    pub width: Option<u32>,
+    /// Thumbnail height in pixels
+    pub height: Option<u32>,
+}
+
+/// Media RSS content
+#[derive(Debug, Clone)]
+pub struct MediaContent {
+    /// Media URL
+    pub url: String,
+    /// MIME type
+    pub content_type: Option<String>,
+    /// File size in bytes
+    pub filesize: Option<u64>,
+    /// Media width in pixels
+    pub width: Option<u32>,
+    /// Media height in pixels
+    pub height: Option<u32>,
+    /// Duration in seconds (for audio/video)
+    pub duration: Option<u64>,
+}
+
 impl FromAttributes for Link {
     fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
     where
@@ -359,6 +387,71 @@ impl FromAttributes for Enclosure {
             url,
             length,
             enclosure_type,
+        })
+    }
+}
+
+impl FromAttributes for MediaThumbnail {
+    fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
+    where
+        I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>,
+    {
+        let mut url = None;
+        let mut width = None;
+        let mut height = None;
+
+        for attr in attrs {
+            if attr.value.len() > max_attr_length {
+                continue;
+            }
+
+            match attr.key.as_ref() {
+                b"url" => url = Some(bytes_to_string(&attr.value)),
+                b"width" => width = bytes_to_string(&attr.value).parse().ok(),
+                b"height" => height = bytes_to_string(&attr.value).parse().ok(),
+                _ => {}
+            }
+        }
+
+        url.map(|url| Self { url, width, height })
+    }
+}
+
+impl FromAttributes for MediaContent {
+    fn from_attributes<'a, I>(attrs: I, max_attr_length: usize) -> Option<Self>
+    where
+        I: Iterator<Item = quick_xml::events::attributes::Attribute<'a>>,
+    {
+        let mut url = None;
+        let mut content_type = None;
+        let mut filesize = None;
+        let mut width = None;
+        let mut height = None;
+        let mut duration = None;
+
+        for attr in attrs {
+            if attr.value.len() > max_attr_length {
+                continue;
+            }
+
+            match attr.key.as_ref() {
+                b"url" => url = Some(bytes_to_string(&attr.value)),
+                b"type" => content_type = Some(bytes_to_string(&attr.value)),
+                b"fileSize" => filesize = bytes_to_string(&attr.value).parse().ok(),
+                b"width" => width = bytes_to_string(&attr.value).parse().ok(),
+                b"height" => height = bytes_to_string(&attr.value).parse().ok(),
+                b"duration" => duration = bytes_to_string(&attr.value).parse().ok(),
+                _ => {}
+            }
+        }
+
+        url.map(|url| Self {
+            url,
+            content_type,
+            filesize,
+            width,
+            height,
+            duration,
         })
     }
 }

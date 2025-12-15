@@ -1,0 +1,63 @@
+# Codecov configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        # Project must have at least 70% coverage
+        target: 70%
+        # Allow up to 2% drop in coverage
+        threshold: 2%
+        # Only post status if coverage changes
+        if_ci_failed: error
+
+    patch:
+      default:
+        # New code should have at least 80% coverage
+        target: 80%
+        threshold: 5%
+        if_ci_failed: error
+
+  precision: 2
+  round: down
+  range: "60...90"
+
+# Configure flags for different components
+flags:
+  rust-core:
+    paths:
+      - crates/feedparser-rs-core/src/
+    carryforward: true
+
+  python-bindings:
+    paths:
+      - crates/feedparser-rs-py/src/
+    carryforward: true
+
+  node-bindings:
+    paths:
+      - crates/feedparser-rs-node/src/
+    carryforward: true
+
+# Comment configuration
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+# Ignore these paths from coverage
+ignore:
+  - "tests/"
+  - "benches/"
+  - "examples/"
+  - "*/tests/*"
+  - "*/benches/*"
+  - "**/tests.rs"
+  - "**/test_*.rs"
+
+# GitHub checks
+github_checks:
+  annotations: true
