@@ -1,5 +1,7 @@
 use super::{
-    common::{Content, Enclosure, Link, MediaContent, MediaThumbnail, Person, Source, Tag, TextConstruct},
+    common::{
+        Content, Enclosure, Link, MediaContent, MediaThumbnail, Person, Source, Tag, TextConstruct,
+    },
     podcast::ItunesEntryMeta,
 };
 use chrono::{DateTime, Utc};

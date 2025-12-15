@@ -134,14 +134,14 @@ impl FeedHttpClient {
             headers.extend(extra.clone());
         }
 
-        let response =
-            self.client
-                .get(url_str)
-                .headers(headers)
-                .send()
-                .map_err(|e| FeedError::Http {
-                    message: format!("HTTP request failed: {e}"),
-                })?;
+        let response = self
+            .client
+            .get(url_str)
+            .headers(headers)
+            .send()
+            .map_err(|e| FeedError::Http {
+                message: format!("HTTP request failed: {e}"),
+            })?;
 
         Self::build_response(response, url_str)
     }

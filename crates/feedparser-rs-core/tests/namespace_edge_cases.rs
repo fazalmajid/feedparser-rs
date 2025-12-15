@@ -139,7 +139,10 @@ fn test_dc_fallback_behavior() {
 
     // Entry level: RSS author should take precedence, but dc_creator is also stored
     let entry = &feed.entries[0];
-    assert_eq!(entry.author.as_deref(), Some("rss@example.com (RSS Author)"));
+    assert_eq!(
+        entry.author.as_deref(),
+        Some("rss@example.com (RSS Author)")
+    );
     assert_eq!(entry.dc_creator.as_deref(), Some("DC Entry Author"));
 }
 
@@ -360,14 +363,8 @@ fn test_dc_contributor_vs_creator() {
 
     // Contributors should be in contributors list
     assert_eq!(entry.contributors.len(), 2);
-    assert_eq!(
-        entry.contributors[0].name.as_deref(),
-        Some("Contributor 1")
-    );
-    assert_eq!(
-        entry.contributors[1].name.as_deref(),
-        Some("Contributor 2")
-    );
+    assert_eq!(entry.contributors[0].name.as_deref(), Some("Contributor 1"));
+    assert_eq!(entry.contributors[1].name.as_deref(), Some("Contributor 2"));
 }
 
 /// Tests large content:encoded to ensure no buffer issues
@@ -411,10 +408,7 @@ fn test_dc_publisher_field() {
 
     let feed = parse(xml).unwrap();
 
-    assert_eq!(
-        feed.feed.dc_publisher.as_deref(),
-        Some("Example Publisher")
-    );
+    assert_eq!(feed.feed.dc_publisher.as_deref(), Some("Example Publisher"));
     assert_eq!(feed.feed.publisher.as_deref(), Some("Example Publisher"));
 }
 
@@ -465,8 +459,10 @@ fn test_content_encoded_in_atom() {
     assert!(entry.content.len() >= 2);
 
     // Verify content:encoded is captured
-    assert!(entry
-        .content
-        .iter()
-        .any(|c| c.value.contains("Content module content")));
+    assert!(
+        entry
+            .content
+            .iter()
+            .any(|c| c.value.contains("Content module content"))
+    );
 }

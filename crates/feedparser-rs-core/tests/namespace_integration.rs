@@ -27,10 +27,7 @@ fn test_rss_with_dublin_core() {
 
     // Feed-level Dublin Core
     assert_eq!(feed.feed.dc_creator.as_deref(), Some("John Doe"));
-    assert_eq!(
-        feed.feed.dc_publisher.as_deref(),
-        Some("Example Publisher")
-    );
+    assert_eq!(feed.feed.dc_publisher.as_deref(), Some("Example Publisher"));
     assert_eq!(feed.feed.dc_rights.as_deref(), Some("Copyright 2024"));
 
     // Entry-level Dublin Core
@@ -69,10 +66,7 @@ fn test_rss_with_content_encoded() {
     // Content should be from content:encoded
     assert_eq!(entry.content.len(), 1);
     assert!(entry.content[0].value.contains("Full HTML content"));
-    assert_eq!(
-        entry.content[0].content_type.as_deref(),
-        Some("text/html")
-    );
+    assert_eq!(entry.content[0].content_type.as_deref(), Some("text/html"));
 }
 
 #[test]
@@ -150,10 +144,7 @@ fn test_atom_with_dublin_core() {
 
     // Entry-level DC
     assert_eq!(feed.entries.len(), 1);
-    assert_eq!(
-        feed.entries[0].dc_creator.as_deref(),
-        Some("Entry Author")
-    );
+    assert_eq!(feed.entries[0].dc_creator.as_deref(), Some("Entry Author"));
     assert_eq!(feed.entries[0].dc_subject.len(), 1);
     assert_eq!(feed.entries[0].dc_subject[0], "Atom");
 }
@@ -182,7 +173,12 @@ fn test_atom_with_content_encoded() {
 
     // Should have both summary and content:encoded
     assert_eq!(entry.summary.as_deref(), Some("Entry summary"));
-    assert!(entry.content.iter().any(|c| c.value.contains("Full content")));
+    assert!(
+        entry
+            .content
+            .iter()
+            .any(|c| c.value.contains("Full content"))
+    );
 }
 
 #[test]
@@ -209,7 +205,10 @@ fn test_atom_with_media_rss() {
 
     // Media thumbnails
     assert_eq!(entry.media_thumbnails.len(), 1);
-    assert_eq!(entry.media_thumbnails[0].url, "http://example.com/image.jpg");
+    assert_eq!(
+        entry.media_thumbnails[0].url,
+        "http://example.com/image.jpg"
+    );
 
     // Media content
     assert_eq!(entry.media_content.len(), 1);

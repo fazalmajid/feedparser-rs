@@ -80,7 +80,7 @@ pub fn validate_url(url_str: &str) -> Result<Url> {
                 message: format!(
                     "Unsupported URL scheme '{scheme}': only 'http' and 'https' are allowed"
                 ),
-            })
+            });
         }
     }
 

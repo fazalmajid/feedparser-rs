@@ -2,14 +2,14 @@
 
 #[cfg(feature = "http")]
 mod http_tests {
-    use feedparser_rs_core::http::{FeedHttpClient, FeedHttpResponse};
     use feedparser_rs_core::FeedError;
-    use flate2::write::GzEncoder;
+    use feedparser_rs_core::http::{FeedHttpClient, FeedHttpResponse};
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use mockito;
     use reqwest::blocking::Client;
     use reqwest::header::{
-        HeaderMap, HeaderValue, ACCEPT, ACCEPT_ENCODING, IF_MODIFIED_SINCE, IF_NONE_MATCH,
+        ACCEPT, ACCEPT_ENCODING, HeaderMap, HeaderValue, IF_MODIFIED_SINCE, IF_NONE_MATCH,
         USER_AGENT,
     };
     use std::collections::HashMap;
@@ -48,7 +48,10 @@ mod http_tests {
                 "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
             ),
         );
-        headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("gzip, deflate, br"));
+        headers.insert(
+            ACCEPT_ENCODING,
+            HeaderValue::from_static("gzip, deflate, br"),
+        );
 
         if let Some(etag_val) = etag {
             headers.insert(
@@ -241,8 +244,14 @@ mod http_tests {
             .create();
 
         let url = format!("{}/feed.xml", server.url());
-        let response = test_get(&url, None, Some("Mon, 01 Jan 2024 00:00:00 GMT"), None, None)
-            .unwrap();
+        let response = test_get(
+            &url,
+            None,
+            Some("Mon, 01 Jan 2024 00:00:00 GMT"),
+            None,
+            None,
+        )
+        .unwrap();
 
         assert_eq!(response.status, 304);
         mock.assert();
@@ -602,8 +611,7 @@ mod http_tests {
 
     #[test]
     fn test_gzip_compression_automatic_decompression() {
-        let xml =
-            b"<rss version=\"2.0\"><channel><title>Compressed Feed</title></channel></rss>";
+        let xml = b"<rss version=\"2.0\"><channel><title>Compressed Feed</title></channel></rss>";
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         encoder.write_all(xml).unwrap();
         let compressed = encoder.finish().unwrap();
@@ -691,7 +699,13 @@ mod http_tests {
 
     #[test]
     fn test_invalid_etag_returns_error() {
-        let result = test_get("http://example.com/feed.xml", Some("\n\r"), None, None, None);
+        let result = test_get(
+            "http://example.com/feed.xml",
+            Some("\n\r"),
+            None,
+            None,
+            None,
+        );
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -704,7 +718,13 @@ mod http_tests {
 
     #[test]
     fn test_invalid_last_modified_returns_error() {
-        let result = test_get("http://example.com/feed.xml", None, Some("\n\r"), None, None);
+        let result = test_get(
+            "http://example.com/feed.xml",
+            None,
+            Some("\n\r"),
+            None,
+            None,
+        );
 
         assert!(result.is_err());
         match result.unwrap_err() {
