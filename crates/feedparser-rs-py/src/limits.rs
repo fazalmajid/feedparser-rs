@@ -1,18 +1,7 @@
 use feedparser_rs_core::ParserLimits as CoreParserLimits;
 use pyo3::prelude::*;
 
-/// Resource limits for feed parsing
-///
-/// Protects against DoS attacks from malicious feeds that attempt to
-/// exhaust memory or CPU resources.
-///
-/// Examples:
-///     >>> import feedparser_rs
-///     >>> limits = feedparser_rs.ParserLimits(
-///     ...     max_feed_size_bytes=50_000_000,  # 50 MB
-///     ...     max_entries=5_000
-///     ... )
-///     >>> d = feedparser_rs.parse_with_limits(feed_data, limits)
+/// Resource limits for feed parsing (DoS protection)
 #[pyclass(name = "ParserLimits", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyParserLimits {
@@ -29,21 +18,6 @@ pub struct PyParserLimits {
 
 #[pymethods]
 impl PyParserLimits {
-    /// Create parser limits with custom values
-    ///
-    /// Args:
-    ///     max_feed_size_bytes: Maximum feed size in bytes (default: 100 MB)
-    ///     max_entries: Maximum number of entries (default: 10,000)
-    ///     max_links_per_feed: Maximum links at feed level (default: 100)
-    ///     max_links_per_entry: Maximum links per entry (default: 50)
-    ///     max_authors: Maximum authors per feed/entry (default: 20)
-    ///     max_contributors: Maximum contributors per feed/entry (default: 20)
-    ///     max_tags: Maximum tags per feed/entry (default: 100)
-    ///     max_content_blocks: Maximum content blocks per entry (default: 10)
-    ///     max_enclosures: Maximum enclosures per entry (default: 20)
-    ///
-    /// Returns:
-    ///     ParserLimits: New limits object
     #[new]
     #[pyo3(signature = (
         max_feed_size_bytes=100_000_000,

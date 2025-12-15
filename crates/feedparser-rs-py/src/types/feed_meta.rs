@@ -5,7 +5,6 @@ use super::common::{PyGenerator, PyImage, PyLink, PyPerson, PyTag, PyTextConstru
 use super::datetime::optional_datetime_to_struct_time;
 use super::podcast::{PyItunesFeedMeta, PyPodcastMeta};
 
-/// Feed-level metadata
 #[pyclass(name = "FeedMeta", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyFeedMeta {
@@ -20,13 +19,11 @@ impl PyFeedMeta {
 
 #[pymethods]
 impl PyFeedMeta {
-    /// Feed title
     #[getter]
     fn title(&self) -> Option<&str> {
         self.inner.title.as_deref()
     }
 
-    /// Detailed title with metadata
     #[getter]
     fn title_detail(&self) -> Option<PyTextConstruct> {
         self.inner
@@ -35,13 +32,11 @@ impl PyFeedMeta {
             .map(|tc| PyTextConstruct::from_core(tc.clone()))
     }
 
-    /// Primary feed link
     #[getter]
     fn link(&self) -> Option<&str> {
         self.inner.link.as_deref()
     }
 
-    /// All links associated with this feed
     #[getter]
     fn links(&self) -> Vec<PyLink> {
         self.inner
@@ -51,13 +46,11 @@ impl PyFeedMeta {
             .collect()
     }
 
-    /// Feed subtitle/description
     #[getter]
     fn subtitle(&self) -> Option<&str> {
         self.inner.subtitle.as_deref()
     }
 
-    /// Detailed subtitle with metadata
     #[getter]
     fn subtitle_detail(&self) -> Option<PyTextConstruct> {
         self.inner
@@ -66,25 +59,21 @@ impl PyFeedMeta {
             .map(|tc| PyTextConstruct::from_core(tc.clone()))
     }
 
-    /// Last update date (ISO 8601 string)
     #[getter]
     fn updated(&self) -> Option<String> {
         self.inner.updated.map(|dt| dt.to_rfc3339())
     }
 
-    /// Last update date as time.struct_time (feedparser compatibility)
     #[getter]
     fn updated_parsed(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
         optional_datetime_to_struct_time(py, &self.inner.updated)
     }
 
-    /// Primary author name
     #[getter]
     fn author(&self) -> Option<&str> {
         self.inner.author.as_deref()
     }
 
-    /// Detailed author information
     #[getter]
     fn author_detail(&self) -> Option<PyPerson> {
         self.inner
@@ -93,7 +82,6 @@ impl PyFeedMeta {
             .map(|p| PyPerson::from_core(p.clone()))
     }
 
-    /// All authors
     #[getter]
     fn authors(&self) -> Vec<PyPerson> {
         self.inner
@@ -103,7 +91,6 @@ impl PyFeedMeta {
             .collect()
     }
 
-    /// Contributors to this feed
     #[getter]
     fn contributors(&self) -> Vec<PyPerson> {
         self.inner
@@ -113,13 +100,11 @@ impl PyFeedMeta {
             .collect()
     }
 
-    /// Publisher name
     #[getter]
     fn publisher(&self) -> Option<&str> {
         self.inner.publisher.as_deref()
     }
 
-    /// Detailed publisher information
     #[getter]
     fn publisher_detail(&self) -> Option<PyPerson> {
         self.inner
@@ -128,19 +113,16 @@ impl PyFeedMeta {
             .map(|p| PyPerson::from_core(p.clone()))
     }
 
-    /// Feed language (e.g., "en", "fr")
     #[getter]
     fn language(&self) -> Option<&str> {
         self.inner.language.as_deref()
     }
 
-    /// Copyright/rights statement
     #[getter]
     fn rights(&self) -> Option<&str> {
         self.inner.rights.as_deref()
     }
 
-    /// Detailed rights with metadata
     #[getter]
     fn rights_detail(&self) -> Option<PyTextConstruct> {
         self.inner
@@ -149,13 +131,11 @@ impl PyFeedMeta {
             .map(|tc| PyTextConstruct::from_core(tc.clone()))
     }
 
-    /// Feed generator name
     #[getter]
     fn generator(&self) -> Option<&str> {
         self.inner.generator.as_deref()
     }
 
-    /// Detailed generator information
     #[getter]
     fn generator_detail(&self) -> Option<PyGenerator> {
         self.inner
@@ -164,7 +144,6 @@ impl PyFeedMeta {
             .map(|g| PyGenerator::from_core(g.clone()))
     }
 
-    /// Feed image/logo
     #[getter]
     fn image(&self) -> Option<PyImage> {
         self.inner
@@ -173,19 +152,16 @@ impl PyFeedMeta {
             .map(|i| PyImage::from_core(i.clone()))
     }
 
-    /// Feed icon URL (Atom)
     #[getter]
     fn icon(&self) -> Option<&str> {
         self.inner.icon.as_deref()
     }
 
-    /// Feed logo URL (Atom)
     #[getter]
     fn logo(&self) -> Option<&str> {
         self.inner.logo.as_deref()
     }
 
-    /// Feed tags/categories
     #[getter]
     fn tags(&self) -> Vec<PyTag> {
         self.inner
@@ -195,19 +171,16 @@ impl PyFeedMeta {
             .collect()
     }
 
-    /// Feed unique identifier
     #[getter]
     fn id(&self) -> Option<&str> {
         self.inner.id.as_deref()
     }
 
-    /// Time to live (refresh interval in minutes)
     #[getter]
     fn ttl(&self) -> Option<u32> {
         self.inner.ttl
     }
 
-    /// iTunes podcast metadata
     #[getter]
     fn itunes(&self) -> Option<PyItunesFeedMeta> {
         self.inner
@@ -216,7 +189,6 @@ impl PyFeedMeta {
             .map(|i| PyItunesFeedMeta::from_core(i.clone()))
     }
 
-    /// Podcast 2.0 namespace metadata
     #[getter]
     fn podcast(&self) -> Option<PyPodcastMeta> {
         self.inner

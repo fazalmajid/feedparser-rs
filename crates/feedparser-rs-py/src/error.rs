@@ -2,7 +2,6 @@ use feedparser_rs_core::FeedError;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 
-/// Convert FeedError to PyErr
 pub fn convert_feed_error(err: FeedError) -> PyErr {
     match err {
         FeedError::XmlError(msg) => PyValueError::new_err(format!("XML parse error: {}", msg)),

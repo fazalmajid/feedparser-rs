@@ -6,7 +6,6 @@ use feedparser_rs_core::{
 };
 use pyo3::prelude::*;
 
-/// iTunes podcast metadata at feed level
 #[pyclass(name = "ItunesFeedMeta", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyItunesFeedMeta {
@@ -21,13 +20,11 @@ impl PyItunesFeedMeta {
 
 #[pymethods]
 impl PyItunesFeedMeta {
-    /// Podcast author
     #[getter]
     fn author(&self) -> Option<&str> {
         self.inner.author.as_deref()
     }
 
-    /// Podcast owner contact information
     #[getter]
     fn owner(&self) -> Option<PyItunesOwner> {
         self.inner
@@ -36,7 +33,6 @@ impl PyItunesFeedMeta {
             .map(|o| PyItunesOwner::from_core(o.clone()))
     }
 
-    /// Podcast categories
     #[getter]
     fn categories(&self) -> Vec<PyItunesCategory> {
         self.inner
@@ -46,25 +42,21 @@ impl PyItunesFeedMeta {
             .collect()
     }
 
-    /// Explicit content flag
     #[getter]
     fn explicit(&self) -> Option<bool> {
         self.inner.explicit
     }
 
-    /// Podcast artwork URL
     #[getter]
     fn image(&self) -> Option<&str> {
         self.inner.image.as_deref()
     }
 
-    /// Search keywords
     #[getter]
     fn keywords(&self) -> Vec<String> {
         self.inner.keywords.clone()
     }
 
-    /// Podcast type: "episodic" or "serial"
     #[getter]
     fn podcast_type(&self) -> Option<&str> {
         self.inner.podcast_type.as_deref()
@@ -79,7 +71,6 @@ impl PyItunesFeedMeta {
     }
 }
 
-/// iTunes podcast metadata at episode level
 #[pyclass(name = "ItunesEntryMeta", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyItunesEntryMeta {
@@ -94,49 +85,41 @@ impl PyItunesEntryMeta {
 
 #[pymethods]
 impl PyItunesEntryMeta {
-    /// Episode title override
     #[getter]
     fn title(&self) -> Option<&str> {
         self.inner.title.as_deref()
     }
 
-    /// Episode author
     #[getter]
     fn author(&self) -> Option<&str> {
         self.inner.author.as_deref()
     }
 
-    /// Episode duration in seconds
     #[getter]
     fn duration(&self) -> Option<u32> {
         self.inner.duration
     }
 
-    /// Explicit content flag
     #[getter]
     fn explicit(&self) -> Option<bool> {
         self.inner.explicit
     }
 
-    /// Episode-specific artwork URL
     #[getter]
     fn image(&self) -> Option<&str> {
         self.inner.image.as_deref()
     }
 
-    /// Episode number
     #[getter]
     fn episode(&self) -> Option<u32> {
         self.inner.episode
     }
 
-    /// Season number
     #[getter]
     fn season(&self) -> Option<u32> {
         self.inner.season
     }
 
-    /// Episode type: "full", "trailer", or "bonus"
     #[getter]
     fn episode_type(&self) -> Option<&str> {
         self.inner.episode_type.as_deref()
@@ -151,7 +134,6 @@ impl PyItunesEntryMeta {
     }
 }
 
-/// iTunes podcast owner information
 #[pyclass(name = "ItunesOwner", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyItunesOwner {
@@ -166,13 +148,11 @@ impl PyItunesOwner {
 
 #[pymethods]
 impl PyItunesOwner {
-    /// Owner's name
     #[getter]
     fn name(&self) -> Option<&str> {
         self.inner.name.as_deref()
     }
 
-    /// Owner's email address
     #[getter]
     fn email(&self) -> Option<&str> {
         self.inner.email.as_deref()
@@ -187,7 +167,6 @@ impl PyItunesOwner {
     }
 }
 
-/// iTunes category with optional subcategory
 #[pyclass(name = "ItunesCategory", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyItunesCategory {
@@ -202,13 +181,11 @@ impl PyItunesCategory {
 
 #[pymethods]
 impl PyItunesCategory {
-    /// Category name
     #[getter]
     fn text(&self) -> &str {
         &self.inner.text
     }
 
-    /// Optional subcategory
     #[getter]
     fn subcategory(&self) -> Option<&str> {
         self.inner.subcategory.as_deref()
@@ -226,7 +203,6 @@ impl PyItunesCategory {
     }
 }
 
-/// Podcast 2.0 namespace metadata
 #[pyclass(name = "PodcastMeta", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyPodcastMeta {
@@ -241,7 +217,6 @@ impl PyPodcastMeta {
 
 #[pymethods]
 impl PyPodcastMeta {
-    /// Transcript URLs
     #[getter]
     fn transcripts(&self) -> Vec<PyPodcastTranscript> {
         self.inner
@@ -251,7 +226,6 @@ impl PyPodcastMeta {
             .collect()
     }
 
-    /// Funding/donation links
     #[getter]
     fn funding(&self) -> Vec<PyPodcastFunding> {
         self.inner
@@ -261,7 +235,6 @@ impl PyPodcastMeta {
             .collect()
     }
 
-    /// People associated with podcast
     #[getter]
     fn persons(&self) -> Vec<PyPodcastPerson> {
         self.inner
@@ -271,7 +244,6 @@ impl PyPodcastMeta {
             .collect()
     }
 
-    /// Permanent podcast GUID
     #[getter]
     fn guid(&self) -> Option<&str> {
         self.inner.guid.as_deref()
@@ -286,7 +258,6 @@ impl PyPodcastMeta {
     }
 }
 
-/// Podcast 2.0 transcript
 #[pyclass(name = "PodcastTranscript", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyPodcastTranscript {
@@ -301,26 +272,22 @@ impl PyPodcastTranscript {
 
 #[pymethods]
 impl PyPodcastTranscript {
-    /// Transcript URL
     #[getter]
     fn url(&self) -> &str {
         &self.inner.url
     }
 
-    /// MIME type
     #[getter]
     #[pyo3(name = "type")]
     fn transcript_type(&self) -> Option<&str> {
         self.inner.transcript_type.as_deref()
     }
 
-    /// Language code
     #[getter]
     fn language(&self) -> Option<&str> {
         self.inner.language.as_deref()
     }
 
-    /// Relationship (rel attribute)
     #[getter]
     fn rel(&self) -> Option<&str> {
         self.inner.rel.as_deref()
@@ -335,7 +302,6 @@ impl PyPodcastTranscript {
     }
 }
 
-/// Podcast 2.0 funding information
 #[pyclass(name = "PodcastFunding", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyPodcastFunding {
@@ -350,13 +316,11 @@ impl PyPodcastFunding {
 
 #[pymethods]
 impl PyPodcastFunding {
-    /// Funding URL
     #[getter]
     fn url(&self) -> &str {
         &self.inner.url
     }
 
-    /// Optional message/call-to-action
     #[getter]
     fn message(&self) -> Option<&str> {
         self.inner.message.as_deref()
@@ -367,7 +331,6 @@ impl PyPodcastFunding {
     }
 }
 
-/// Podcast 2.0 person
 #[pyclass(name = "PodcastPerson", module = "feedparser_rs")]
 #[derive(Clone)]
 pub struct PyPodcastPerson {
@@ -382,31 +345,26 @@ impl PyPodcastPerson {
 
 #[pymethods]
 impl PyPodcastPerson {
-    /// Person's name
     #[getter]
     fn name(&self) -> &str {
         &self.inner.name
     }
 
-    /// Role: "host", "guest", "editor", etc.
     #[getter]
     fn role(&self) -> Option<&str> {
         self.inner.role.as_deref()
     }
 
-    /// Group name
     #[getter]
     fn group(&self) -> Option<&str> {
         self.inner.group.as_deref()
     }
 
-    /// Image URL
     #[getter]
     fn img(&self) -> Option<&str> {
         self.inner.img.as_deref()
     }
 
-    /// Personal URL/homepage
     #[getter]
     fn href(&self) -> Option<&str> {
         self.inner.href.as_deref()
