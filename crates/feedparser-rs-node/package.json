@@ -40,11 +40,12 @@
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "test": "node --test __test__/index.spec.mjs",
-    "test:coverage": "node --test --experimental-test-coverage __test__/index.spec.mjs",
+    "test:coverage": "c8 --reporter=lcov --reporter=text --reports-dir=coverage node --test __test__/index.spec.mjs",
     "prepublishOnly": "napi prepublish -t npm"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.5"
+    "@napi-rs/cli": "^3.5",
+    "c8": "^10.1.3"
   },
   "optionalDependencies": {
     "feedparser-rs-darwin-arm64": "0.1.0",
