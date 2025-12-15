@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
 #[cfg(feature = "http")]
+#[allow(clippy::significant_drop_tightening)]
 mod http_tests {
     use feedparser_rs_core::FeedError;
     use feedparser_rs_core::http::{FeedHttpClient, FeedHttpResponse};
     use flate2::Compression;
     use flate2::write::GzEncoder;
-    use mockito;
     use reqwest::blocking::Client;
     use reqwest::header::{
         ACCEPT, ACCEPT_ENCODING, HeaderMap, HeaderValue, IF_MODIFIED_SINCE, IF_NONE_MATCH,

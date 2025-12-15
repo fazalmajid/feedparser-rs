@@ -367,10 +367,10 @@ fn test_dc_contributor_vs_creator() {
     assert_eq!(entry.contributors[1].name.as_deref(), Some("Contributor 2"));
 }
 
-/// Tests large content:encoded to ensure no buffer issues
+/// Tests large `content:encoded` to ensure no buffer issues
 #[test]
 fn test_large_content_encoded() {
-    let large_html = format!("<p>{}</p>", "x".repeat(100_000));
+    let large_html = "x".repeat(100_000);
     let xml = format!(
         r#"<?xml version="1.0"?>
         <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -378,11 +378,10 @@ fn test_large_content_encoded() {
                 <title>Test</title>
                 <item>
                     <title>Entry</title>
-                    <content:encoded><![CDATA[{}]]></content:encoded>
+                    <content:encoded><![CDATA[<p>{large_html}</p>]]></content:encoded>
                 </item>
             </channel>
-        </rss>"#,
-        large_html
+        </rss>"#
     );
 
     let feed = parse(xml.as_bytes()).unwrap();
@@ -392,7 +391,7 @@ fn test_large_content_encoded() {
     assert!(entry.content[0].value.len() > 100_000);
 }
 
-/// Tests that dc:publisher is stored in the dc_publisher field
+/// Tests that `dc:publisher` is stored in the `dc_publisher` field
 #[test]
 fn test_dc_publisher_field() {
     let xml = br#"<?xml version="1.0"?>
