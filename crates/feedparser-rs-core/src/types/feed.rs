@@ -265,8 +265,8 @@ impl FeedMeta {
     /// assert_eq!(meta.title.as_deref(), Some("Example Feed"));
     /// ```
     #[inline]
-    pub fn set_title(&mut self, text: TextConstruct) {
-        self.title = Some(text.value.clone());
+    pub fn set_title(&mut self, mut text: TextConstruct) {
+        self.title = Some(std::mem::take(&mut text.value));
         self.title_detail = Some(text);
     }
 
@@ -282,8 +282,8 @@ impl FeedMeta {
     /// assert_eq!(meta.subtitle.as_deref(), Some("A great feed"));
     /// ```
     #[inline]
-    pub fn set_subtitle(&mut self, text: TextConstruct) {
-        self.subtitle = Some(text.value.clone());
+    pub fn set_subtitle(&mut self, mut text: TextConstruct) {
+        self.subtitle = Some(std::mem::take(&mut text.value));
         self.subtitle_detail = Some(text);
     }
 
@@ -299,8 +299,8 @@ impl FeedMeta {
     /// assert_eq!(meta.rights.as_deref(), Some("© 2025 Example"));
     /// ```
     #[inline]
-    pub fn set_rights(&mut self, text: TextConstruct) {
-        self.rights = Some(text.value.clone());
+    pub fn set_rights(&mut self, mut text: TextConstruct) {
+        self.rights = Some(std::mem::take(&mut text.value));
         self.rights_detail = Some(text);
     }
 
@@ -311,18 +311,20 @@ impl FeedMeta {
     /// ```
     /// use feedparser_rs_core::{FeedMeta, Generator};
     ///
+    /// # fn main() {
     /// let mut meta = FeedMeta::default();
-    /// let gen = Generator {
+    /// let generator = Generator {
     ///     value: "Example Generator".to_string(),
     ///     uri: None,
     ///     version: None,
     /// };
-    /// meta.set_generator(gen);
+    /// meta.set_generator(generator);
     /// assert_eq!(meta.generator.as_deref(), Some("Example Generator"));
+    /// # }
     /// ```
     #[inline]
-    pub fn set_generator(&mut self, generator: Generator) {
-        self.generator = Some(generator.value.clone());
+    pub fn set_generator(&mut self, mut generator: Generator) {
+        self.generator = Some(std::mem::take(&mut generator.value));
         self.generator_detail = Some(generator);
     }
 
@@ -338,8 +340,8 @@ impl FeedMeta {
     /// assert_eq!(meta.author.as_deref(), Some("John Doe"));
     /// ```
     #[inline]
-    pub fn set_author(&mut self, person: Person) {
-        self.author.clone_from(&person.name);
+    pub fn set_author(&mut self, mut person: Person) {
+        self.author = person.name.take();
         self.author_detail = Some(person);
     }
 
@@ -355,8 +357,8 @@ impl FeedMeta {
     /// assert_eq!(meta.publisher.as_deref(), Some("ACME Corp"));
     /// ```
     #[inline]
-    pub fn set_publisher(&mut self, person: Person) {
-        self.publisher.clone_from(&person.name);
+    pub fn set_publisher(&mut self, mut person: Person) {
+        self.publisher = person.name.take();
         self.publisher_detail = Some(person);
     }
 }

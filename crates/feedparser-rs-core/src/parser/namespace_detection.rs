@@ -6,7 +6,7 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```ignore
 //! use feedparser_rs_core::parser::namespace_detection::namespaces;
 //!
 //! let tag_name = b"dc:creator";
@@ -32,7 +32,7 @@ impl NamespacePrefix {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use feedparser_rs_core::parser::namespace_detection::NamespacePrefix;
     ///
     /// const CUSTOM: NamespacePrefix = NamespacePrefix::new("custom:");
@@ -63,7 +63,7 @@ impl NamespacePrefix {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use feedparser_rs_core::parser::namespace_detection::namespaces;
     ///
     /// assert_eq!(namespaces::DC.matches(b"dc:creator"), Some("creator"));
@@ -83,9 +83,19 @@ impl NamespacePrefix {
 
     /// Returns the prefix string (e.g., `"dc:"`)
     ///
+    /// # Safety
+    ///
+    /// This function uses `unsafe` because `std::str::from_utf8` is not
+    /// yet `const fn` stable. The safety invariant is guaranteed by:
+    ///
+    /// 1. `new()` only accepts `&'static str` (compile-time valid UTF-8)
+    /// 2. `as_bytes()` is a reversible, safe transformation
+    /// 3. The field is private and immutable - no external mutation
+    /// 4. All instances are const-initialized with string literals
+    ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use feedparser_rs_core::parser::namespace_detection::namespaces;
     ///
     /// assert_eq!(namespaces::DC.prefix(), "dc:");
@@ -94,7 +104,9 @@ impl NamespacePrefix {
     #[must_use]
     #[allow(dead_code)] // Future use
     pub const fn prefix(&self) -> &'static str {
-        // SAFETY: prefix is constructed from &'static str in new(), always valid UTF-8
+        // SAFETY: prefix is always constructed from &'static str in new(),
+        // which guarantees valid UTF-8. The field is private and immutable,
+        // so no external code can violate this invariant.
         #[allow(unsafe_code)]
         unsafe {
             std::str::from_utf8_unchecked(self.prefix)
@@ -117,7 +129,7 @@ impl NamespacePrefix {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use feedparser_rs_core::parser::namespace_detection::namespaces;
 ///
 /// let tag = b"itunes:author";

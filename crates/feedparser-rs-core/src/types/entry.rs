@@ -114,8 +114,8 @@ impl Entry {
     /// assert_eq!(entry.title.as_deref(), Some("Great Article"));
     /// ```
     #[inline]
-    pub fn set_title(&mut self, text: TextConstruct) {
-        self.title = Some(text.value.clone());
+    pub fn set_title(&mut self, mut text: TextConstruct) {
+        self.title = Some(std::mem::take(&mut text.value));
         self.title_detail = Some(text);
     }
 
@@ -131,8 +131,8 @@ impl Entry {
     /// assert_eq!(entry.summary.as_deref(), Some("A summary"));
     /// ```
     #[inline]
-    pub fn set_summary(&mut self, text: TextConstruct) {
-        self.summary = Some(text.value.clone());
+    pub fn set_summary(&mut self, mut text: TextConstruct) {
+        self.summary = Some(std::mem::take(&mut text.value));
         self.summary_detail = Some(text);
     }
 
@@ -148,8 +148,8 @@ impl Entry {
     /// assert_eq!(entry.author.as_deref(), Some("Jane Doe"));
     /// ```
     #[inline]
-    pub fn set_author(&mut self, person: Person) {
-        self.author.clone_from(&person.name);
+    pub fn set_author(&mut self, mut person: Person) {
+        self.author = person.name.take();
         self.author_detail = Some(person);
     }
 
@@ -165,8 +165,8 @@ impl Entry {
     /// assert_eq!(entry.publisher.as_deref(), Some("ACME Corp"));
     /// ```
     #[inline]
-    pub fn set_publisher(&mut self, person: Person) {
-        self.publisher.clone_from(&person.name);
+    pub fn set_publisher(&mut self, mut person: Person) {
+        self.publisher = person.name.take();
         self.publisher_detail = Some(person);
     }
 }
