@@ -141,12 +141,12 @@ mod tests {
         let enclosure = handle_media_content(
             "http://example.com/video.mp4",
             Some("video/mp4"),
-            Some(1024000),
+            Some(1_024_000),
         );
 
         assert_eq!(enclosure.url, "http://example.com/video.mp4");
         assert_eq!(enclosure.enclosure_type.as_deref(), Some("video/mp4"));
-        assert_eq!(enclosure.length, Some(1024000));
+        assert_eq!(enclosure.length, Some(1_024_000));
     }
 
     #[test]

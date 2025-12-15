@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn test_content_encoded() {
         let mut entry = Entry::default();
-        let html = r#"<p>Full HTML content with <strong>formatting</strong>.</p>"#;
+        let html = r"<p>Full HTML content with <strong>formatting</strong>.</p>";
 
         handle_entry_element("encoded", html, &mut entry);
 
@@ -63,7 +63,7 @@ mod tests {
     fn test_content_with_cdata() {
         let mut entry = Entry::default();
         // CDATA markers are typically stripped by XML parser before we see it
-        let html = r#"<p>Content from <![CDATA[...]]></p>"#;
+        let html = r"<p>Content from <![CDATA[...]]></p>";
 
         handle_entry_element("encoded", html, &mut entry);
 
