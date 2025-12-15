@@ -40,6 +40,7 @@
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "test": "node --test __test__/index.spec.mjs",
+    "test:coverage": "node --test --experimental-test-coverage __test__/index.spec.mjs",
     "prepublishOnly": "napi prepublish -t npm"
   },
   "devDependencies": {

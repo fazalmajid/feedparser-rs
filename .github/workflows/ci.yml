@@ -398,7 +398,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: crates/feedparser-rs-node
-        run: npm test -- --coverage
+        run: npm run test:coverage
         continue-on-error: true
 
       - name: Upload Node.js coverage to codecov
