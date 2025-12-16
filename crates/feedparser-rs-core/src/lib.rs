@@ -46,6 +46,7 @@ pub mod http;
 mod limits;
 /// Namespace handlers for extended feed formats
 pub mod namespace;
+mod options;
 mod parser;
 
 /// Type definitions for feed data structures
@@ -62,6 +63,7 @@ pub mod util;
 
 pub use error::{FeedError, Result};
 pub use limits::{LimitError, ParserLimits};
+pub use options::ParseOptions;
 pub use parser::{detect_format, parse, parse_with_limits};
 pub use types::{
     Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, ItunesCategory,

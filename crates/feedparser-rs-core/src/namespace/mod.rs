@@ -6,6 +6,8 @@
 /// - **Dublin Core** (`dc:`) - Metadata elements
 /// - **Content** (`content:`) - Full HTML content
 /// - **Media RSS** (`media:`) - Multimedia content
+/// - **GeoRSS** (`georss:`) - Geographic location data
+/// - **Creative Commons** (`cc:`) - License information
 ///
 /// # Usage
 ///
@@ -23,10 +25,14 @@
 /// dublin_core::handle_feed_element("creator", "John Doe", &mut feed);
 /// assert_eq!(feed.author.as_deref(), Some("John Doe"));
 /// ```
+/// Creative Commons license information
+pub mod cc;
 /// Content Module for RSS 1.0
 pub mod content;
 /// Dublin Core Metadata Element Set
 pub mod dublin_core;
+/// GeoRSS geographic location data
+pub mod georss;
 /// Media RSS specification
 pub mod media_rss;
 
@@ -55,6 +61,15 @@ pub mod namespaces {
 
     /// Podcast 2.0
     pub const PODCAST: &str = "https://podcastindex.org/namespace/1.0";
+
+    /// `GeoRSS`
+    pub const GEORSS: &str = "http://www.georss.org/georss";
+
+    /// Creative Commons (modern)
+    pub const CC: &str = "http://creativecommons.org/ns#";
+
+    /// Creative Commons (legacy Userland)
+    pub const CREATIVE_COMMONS: &str = "http://backend.userland.com/creativeCommonsRssModule";
 }
 
 /// Get namespace URI for a common prefix
@@ -75,6 +90,9 @@ pub fn get_namespace_uri(prefix: &str) -> Option<&'static str> {
         "rdf" => Some(namespaces::RDF),
         "itunes" => Some(namespaces::ITUNES),
         "podcast" => Some(namespaces::PODCAST),
+        "georss" => Some(namespaces::GEORSS),
+        "cc" => Some(namespaces::CC),
+        "creativeCommons" => Some(namespaces::CREATIVE_COMMONS),
         _ => None,
     }
 }
@@ -97,6 +115,9 @@ pub fn get_namespace_prefix(uri: &str) -> Option<&'static str> {
         namespaces::RDF => Some("rdf"),
         namespaces::ITUNES => Some("itunes"),
         namespaces::PODCAST => Some("podcast"),
+        namespaces::GEORSS => Some("georss"),
+        namespaces::CC => Some("cc"),
+        namespaces::CREATIVE_COMMONS => Some("creativeCommons"),
         _ => None,
     }
 }
