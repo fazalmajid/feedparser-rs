@@ -1,45 +1,38 @@
 # feedparser-rs
 
-High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bindings.
+[![Crates.io](https://img.shields.io/crates/v/feedparser-rs-core)](https://crates.io/crates/feedparser-rs-core)
+[![docs.rs](https://img.shields.io/docsrs/feedparser-rs-core)](https://docs.rs/feedparser-rs-core)
+[![CI](https://img.shields.io/github/actions/workflow/status/bug-ops/feedparser-rs/ci.yml?branch=main)](https://github.com/bug-ops/feedparser-rs/actions)
+[![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
+[![License](https://img.shields.io/crates/l/feedparser-rs-core)](LICENSE-MIT)
 
-## Overview
+High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bindings. A drop-in replacement for Python's `feedparser` library with 10-100x performance improvement.
 
-**feedparser-rs** is a drop-in replacement for Python's `feedparser` library, written in Rust for 10-100x performance improvement.
+## Features
 
-### Features
-
-- Parse RSS 0.9x, 1.0, 2.0
-- Parse Atom 0.3, 1.0
-- Parse JSON Feed 1.0, 1.1
-- Tolerant parsing with bozo flag pattern
-- 100% API compatibility with Python feedparser
-- Python bindings via PyO3
-- Node.js bindings via napi-rs
-
-## Status
-
-🚧 **Work in Progress** - Phase 4 (Node.js bindings + CI/CD) complete
-
-[![CI](https://github.com/bug-ops/feedparser-rs/workflows/CI/badge.svg)](https://github.com/bug-ops/feedparser-rs/actions)
-[![Crates.io](https://img.shields.io/crates/v/feedparser-rs-core.svg)](https://crates.io/crates/feedparser-rs-core)
-[![npm](https://img.shields.io/npm/v/feedparser-rs.svg)](https://www.npmjs.com/package/feedparser-rs)
-[![Documentation](https://docs.rs/feedparser-rs-core/badge.svg)](https://docs.rs/feedparser-rs-core)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+- **Multi-format support** — RSS 0.9x, 1.0, 2.0 / Atom 0.3, 1.0 / JSON Feed 1.0, 1.1
+- **Tolerant parsing** — Handles malformed feeds with `bozo` flag pattern (like Python feedparser)
+- **HTTP fetching** — Built-in support for fetching feeds from URLs with compression
+- **Multi-language bindings** — Native Python (PyO3) and Node.js (napi-rs) bindings
+- **feedparser-compatible API** — 100% API compatibility with Python feedparser
 
 ## Installation
 
 ### Rust
+
+```bash
+cargo add feedparser-rs-core
+```
+
+Or add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 feedparser-rs-core = "0.1"
 ```
 
-### Python (Coming in Phase 4)
-
-```bash
-pip install feedparser-rs
-```
+> [!IMPORTANT]
+> Requires Rust 1.88.0 or later (edition 2024).
 
 ### Node.js
 
@@ -51,181 +44,168 @@ yarn add feedparser-rs
 pnpm add feedparser-rs
 ```
 
+### Python
+
+```bash
+pip install feedparser-rs
+```
+
 ## Usage
 
-### Rust
+### Rust Usage
 
 ```rust
 use feedparser_rs_core::parse;
 
-let xml = r#"
-    <?xml version="1.0"?>
-    <rss version="2.0">
-        <channel>
-            <title>Example Feed</title>
-        </channel>
-    </rss>
-"#;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let xml = r#"
+        <?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>Example Feed</title>
+                <link>https://example.com</link>
+                <item>
+                    <title>First Post</title>
+                    <link>https://example.com/post/1</link>
+                </item>
+            </channel>
+        </rss>
+    "#;
 
-let feed = parse(xml.as_bytes())?;
-println!("Version: {}", feed.version.as_str());
-println!("Title: {}", feed.feed.title.unwrap());
+    let feed = parse(xml.as_bytes())?;
+
+    println!("Version: {}", feed.version.as_str());  // "rss20"
+    println!("Title: {:?}", feed.feed.title);
+    println!("Entries: {}", feed.entries.len());
+
+    for entry in &feed.entries {
+        println!("  - {:?}", entry.title);
+    }
+
+    Ok(())
+}
 ```
 
-### Python
+#### Fetching from URL
 
-```python
-import feedparser_rs
+```rust
+use feedparser_rs_core::fetch_and_parse;
 
-d = feedparser_rs.parse(b'<rss>...</rss>')
-print(d.version)  # 'rss20'
-print(d.feed.title)
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let feed = fetch_and_parse("https://example.com/feed.xml")?;
+    println!("Fetched {} entries", feed.entries.len());
+    Ok(())
+}
 ```
 
-### Node.js
+> [!TIP]
+> Use `fetch_and_parse` for URL fetching with automatic compression handling (gzip, deflate, brotli).
+
+### Node.js Usage
 
 ```javascript
-import { parse } from 'feedparser-rs';
+import { parse, fetchAndParse } from 'feedparser-rs';
 
+// Parse from string
 const feed = parse('<rss version="2.0">...</rss>');
 console.log(feed.version);  // 'rss20'
 console.log(feed.feed.title);
 console.log(feed.entries.length);
+
+// Fetch from URL
+const remoteFeed = await fetchAndParse('https://example.com/feed.xml');
 ```
 
-See [crates/feedparser-rs-node/README.md](crates/feedparser-rs-node/README.md) for full Node.js API documentation.
+See [Node.js API documentation](crates/feedparser-rs-node/README.md) for complete reference.
+
+### Python Usage
+
+```python
+import feedparser_rs
+
+# Parse from bytes or string
+d = feedparser_rs.parse(b'<rss>...</rss>')
+print(d.version)       # 'rss20'
+print(d.feed.title)
+print(d.bozo)          # True if parsing had issues
+print(d.entries[0].published_parsed)  # time.struct_time
+```
+
+> [!NOTE]
+> Python bindings provide `time.struct_time` for date fields, matching the original feedparser API.
+
+## Cargo Features
+
+| Feature | Description | Default |
+|---------|-------------|---------|
+| `http` | Enable URL fetching with reqwest (gzip/deflate/brotli support) | Yes |
+
+To disable HTTP support:
+
+```toml
+[dependencies]
+feedparser-rs-core = { version = "0.1", default-features = false }
+```
+
+## Workspace Structure
+
+This repository contains multiple crates:
+
+| Crate | Description | Package |
+|-------|-------------|---------|
+| [`feedparser-rs-core`](crates/feedparser-rs-core) | Core Rust parser | [crates.io](https://crates.io/crates/feedparser-rs-core) |
+| [`feedparser-rs-node`](crates/feedparser-rs-node) | Node.js bindings | [npm](https://www.npmjs.com/package/feedparser-rs) |
+| [`feedparser-rs-py`](crates/feedparser-rs-py) | Python bindings | [PyPI](https://pypi.org/project/feedparser-rs) |
 
 ## Development
 
-This project uses [cargo-make](https://github.com/sagiegurari/cargo-make) for task automation. All development tasks are defined in `Makefile.toml`.
-
-### Setup
-
-Install cargo-make:
+This project uses [cargo-make](https://github.com/sagiegurari/cargo-make) for task automation.
 
 ```bash
+# Install cargo-make
 cargo install cargo-make
+
+# Run all checks (format, lint, test)
+cargo make ci-all
+
+# Run tests
+cargo make test
+
+# Run benchmarks
+cargo make bench
 ```
 
-### Available Tasks
-
-View all available tasks:
+See all available tasks:
 
 ```bash
 cargo make --list-all-steps
 ```
 
-### Common Development Tasks
+## Benchmarks
 
-#### Formatting
-
-```bash
-# Format code with nightly rustfmt
-cargo make fmt
-
-# Check formatting without modifying files
-cargo make fmt-check
-```
-
-#### Linting
+Run benchmark comparison against Python feedparser:
 
 ```bash
-# Run clippy
-cargo make clippy
-
-# Run all linting checks (format + clippy + doc)
-cargo make lint
-```
-
-#### Testing
-
-```bash
-# Run Rust tests
-cargo make test-rust
-
-# Run all tests (Rust + Python + Node.js)
-cargo make test
-
-# Run doctests
-cargo make doctest
-```
-
-#### Security
-
-```bash
-# Run all security checks
-cargo make deny
-
-# Run specific security checks
-cargo make deny-advisories
-cargo make deny-licenses
-```
-
-#### Coverage
-
-```bash
-# Generate Rust coverage
-cargo make coverage-rust
-
-# Generate all coverage reports
-cargo make coverage
-```
-
-#### Benchmarks
-
-```bash
-# Run Rust benchmarks
-cargo make bench
-
-# Compare Rust vs Python performance
 cargo make bench-compare
 ```
 
-#### Utilities
+## MSRV Policy
 
-```bash
-# Check for outdated dependencies
-cargo make check-versions
-```
+Minimum Supported Rust Version: **1.88.0** (edition 2024).
 
-#### Pre-commit/Pre-push
-
-```bash
-# Run checks before committing
-cargo make pre-commit
-
-# Run comprehensive checks before pushing
-cargo make pre-push
-```
-
-#### CI Simulation
-
-```bash
-# Run all CI checks locally
-cargo make ci-all
-```
-
-### Build
-
-```bash
-cargo build --workspace
-# or
-cargo make build
-```
+MSRV increases are considered breaking changes and will result in a minor version bump.
 
 ## License
 
 Licensed under either of:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](LICENSE-MIT))
+- [Apache License, Version 2.0](LICENSE-APACHE)
+- [MIT License](LICENSE-MIT)
 
 at your option.
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a pull request.
 
-### Code of Conduct
-
-This project follows the Rust Code of Conduct.
+This project follows the [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct).

@@ -8,30 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Node.js bindings via napi-rs
-- npm package `feedparser-rs`
-- Criterion benchmarks for Rust
-- CI/CD pipeline with GitHub Actions
-- Cross-platform builds (Linux, macOS, Windows)
-- TypeScript definitions
-- Comprehensive Node.js test suite
-- Benchmark comparison infrastructure
-- Python feedparser benchmark baseline
+- HTTP bindings for URL fetching with `http` feature
+- `parse_url` and `parse_url_with_limits` functions
+- Conditional GET support (ETag, Last-Modified) for bandwidth-efficient caching
+- Automatic compression handling (gzip, deflate, brotli)
+- Node.js `fetchAndParse` async function for URL fetching
+- Podcast namespace support (iTunes and Podcast 2.0)
+- CONTRIBUTING.md guide
+- Improved README with GitHub callouts and better structure
 
 ### Changed
-- N/A
-
-### Deprecated
-- N/A
-
-### Removed
-- N/A
-
-### Fixed
-- N/A
-
-### Security
-- N/A
+- Default features now include `http` for URL fetching support
+- Migrated to cargo-make for task automation
 
 ## [0.1.0] - 2025-12-14
 
