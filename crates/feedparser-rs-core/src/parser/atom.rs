@@ -776,8 +776,14 @@ mod tests {
         </feed>"#;
 
         let feed = parse_atom10(xml).unwrap();
-        assert_eq!(feed.feed.icon.as_deref(), Some("http://example.com/icon.png"));
-        assert_eq!(feed.feed.logo.as_deref(), Some("http://example.com/logo.png"));
+        assert_eq!(
+            feed.feed.icon.as_deref(),
+            Some("http://example.com/icon.png")
+        );
+        assert_eq!(
+            feed.feed.logo.as_deref(),
+            Some("http://example.com/logo.png")
+        );
     }
 
     #[test]
@@ -823,7 +829,10 @@ mod tests {
         </feed>"#;
 
         let feed = parse_atom10(xml).unwrap();
-        assert_eq!(feed.entries[0].summary.as_deref(), Some("This is a summary"));
+        assert_eq!(
+            feed.entries[0].summary.as_deref(),
+            Some("This is a summary")
+        );
         assert!(feed.entries[0].summary_detail.is_some());
     }
 

@@ -1139,7 +1139,10 @@ mod tests {
         </rss>"#;
 
         let feed = parse_rss20(xml).unwrap();
-        assert_eq!(feed.entries[0].author.as_deref(), Some("john@example.com (John Doe)"));
+        assert_eq!(
+            feed.entries[0].author.as_deref(),
+            Some("john@example.com (John Doe)")
+        );
     }
 
     #[test]
@@ -1154,7 +1157,10 @@ mod tests {
         </rss>"#;
 
         let feed = parse_rss20(xml).unwrap();
-        assert_eq!(feed.entries[0].comments.as_deref(), Some("http://example.com/comments"));
+        assert_eq!(
+            feed.entries[0].comments.as_deref(),
+            Some("http://example.com/comments")
+        );
     }
 
     #[test]
