@@ -272,7 +272,7 @@ fi
 '''
 
 [tasks.coverage-node]
-description = "Generate Node.js code coverage"
+description = "Generate Node.js code coverage with c8"
 condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-node/package.json"] }
 script = '''
 #!/bin/bash
@@ -281,7 +281,7 @@ cd crates/feedparser-rs-node
 
 npm ci
 npm run build
-npm test -- --coverage
+npm run test:coverage
 
 echo "Node.js coverage report generated in coverage/"
 '''
