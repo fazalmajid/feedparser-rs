@@ -3,7 +3,7 @@ members = ["crates/feedparser-rs-core", "crates/feedparser-rs-node", "crates/fee
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88.0"
 authors = ["bug-ops"]

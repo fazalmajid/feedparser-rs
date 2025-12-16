@@ -7,19 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-12-16
+
 ### Added
-- HTTP bindings for URL fetching with `http` feature
-- `parse_url` and `parse_url_with_limits` functions
+- HTTP fetching with `http` feature (enabled by default)
+- `parse_url` and `parse_url_with_limits` functions for URL fetching
 - Conditional GET support (ETag, Last-Modified) for bandwidth-efficient caching
 - Automatic compression handling (gzip, deflate, brotli)
-- Node.js `fetchAndParse` async function for URL fetching
+- Node.js `fetchAndParse` function for URL fetching
 - Podcast namespace support (iTunes and Podcast 2.0)
 - CONTRIBUTING.md guide
-- Improved README with GitHub callouts and better structure
+- GitHub issue and PR templates
 
 ### Changed
+- Renamed crate from `feedparser-rs-core` to `feedparser-rs`
 - Default features now include `http` for URL fetching support
 - Migrated to cargo-make for task automation
+- Updated documentation with more accurate claims
 
 ## [0.1.0] - 2025-12-14
 
@@ -32,10 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTML sanitization
 - Encoding detection
 - Tolerant parsing with bozo flag
-- Rust core library `feedparser-rs-core`
+- Rust core library
 - Parser limits for security (max nesting depth, entry count, etc.)
 - Comprehensive test coverage
 - Documentation with examples
 
-[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/bug-ops/feedparser-rs/releases/tag/v0.1.0
