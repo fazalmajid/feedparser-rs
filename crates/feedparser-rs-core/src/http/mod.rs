@@ -9,7 +9,7 @@
 /// # Examples
 ///
 /// ```no_run
-/// use feedparser_rs_core::http::FeedHttpClient;
+/// use feedparser_rs::http::FeedHttpClient;
 ///
 /// let client = FeedHttpClient::new().unwrap();
 /// let response = client.get(

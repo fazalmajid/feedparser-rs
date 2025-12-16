@@ -59,7 +59,7 @@ const DATE_FORMATS: &[&str] = &[
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::date::parse_date;
+/// use feedparser_rs::util::date::parse_date;
 ///
 /// // RFC 3339 (Atom)
 /// assert!(parse_date("2024-12-14T10:30:00Z").is_some());

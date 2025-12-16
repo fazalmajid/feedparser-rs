@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 use std::hint::black_box;
 
 const SMALL_FEED: &[u8] = include_bytes!("../../../benchmarks/fixtures/small.xml");
@@ -29,7 +29,7 @@ fn bench_parse_feeds(c: &mut Criterion) {
 }
 
 fn bench_detect_format(c: &mut Criterion) {
-    use feedparser_rs_core::detect_format;
+    use feedparser_rs::detect_format;
 
     let mut group = c.benchmark_group("detect_format");
 

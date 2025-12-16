@@ -97,7 +97,7 @@ impl Person {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::types::Person;
+    /// use feedparser_rs::types::Person;
     ///
     /// let person = Person::from_name("John Doe");
     /// assert_eq!(person.name.as_deref(), Some("John Doe"));

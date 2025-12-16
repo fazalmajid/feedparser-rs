@@ -128,7 +128,7 @@ impl ParsedFeed {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::ParsedFeed;
+    /// use feedparser_rs::ParsedFeed;
     ///
     /// let feed = ParsedFeed::with_capacity(50);
     /// assert_eq!(feed.encoding, "utf-8");
@@ -212,7 +212,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::FeedMeta;
+    /// use feedparser_rs::FeedMeta;
     ///
     /// let meta = FeedMeta::with_rss_capacity();
     /// ```
@@ -238,7 +238,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::FeedMeta;
+    /// use feedparser_rs::FeedMeta;
     ///
     /// let meta = FeedMeta::with_atom_capacity();
     /// ```
@@ -258,7 +258,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    /// use feedparser_rs::{FeedMeta, TextConstruct};
     ///
     /// let mut meta = FeedMeta::default();
     /// meta.set_title(TextConstruct::text("Example Feed"));
@@ -275,7 +275,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    /// use feedparser_rs::{FeedMeta, TextConstruct};
     ///
     /// let mut meta = FeedMeta::default();
     /// meta.set_subtitle(TextConstruct::text("A great feed"));
@@ -292,7 +292,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, TextConstruct};
+    /// use feedparser_rs::{FeedMeta, TextConstruct};
     ///
     /// let mut meta = FeedMeta::default();
     /// meta.set_rights(TextConstruct::text("© 2025 Example"));
@@ -309,7 +309,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, Generator};
+    /// use feedparser_rs::{FeedMeta, Generator};
     ///
     /// # fn main() {
     /// let mut meta = FeedMeta::default();
@@ -333,7 +333,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, Person};
+    /// use feedparser_rs::{FeedMeta, Person};
     ///
     /// let mut meta = FeedMeta::default();
     /// meta.set_author(Person::from_name("John Doe"));
@@ -350,7 +350,7 @@ impl FeedMeta {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{FeedMeta, Person};
+    /// use feedparser_rs::{FeedMeta, Person};
     ///
     /// let mut meta = FeedMeta::default();
     /// meta.set_publisher(Person::from_name("ACME Corp"));

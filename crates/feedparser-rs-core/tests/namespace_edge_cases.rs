@@ -3,7 +3,7 @@
 //! This module tests edge cases and error conditions for Dublin Core,
 //! Content, and Media RSS namespace parsing.
 
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 
 /// Tests namespace URI handling
 ///

@@ -54,7 +54,7 @@ const METADATA_DOMAINS: &[&str] = &[
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::http::validation::validate_url;
+/// use feedparser_rs::http::validation::validate_url;
 ///
 /// // These are allowed
 /// assert!(validate_url("https://example.com/feed.xml").is_ok());

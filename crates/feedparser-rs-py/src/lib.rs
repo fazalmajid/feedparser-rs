@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
-use feedparser_rs_core as core;
+use feedparser_rs as core;
 
 mod error;
 mod limits;

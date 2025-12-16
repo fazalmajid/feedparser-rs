@@ -1,4 +1,4 @@
-use feedparser_rs_core::{
+use feedparser_rs::{
     Content as CoreContent, Enclosure as CoreEnclosure, Generator as CoreGenerator,
     Image as CoreImage, Link as CoreLink, Person as CorePerson, Source as CoreSource,
     Tag as CoreTag, TextConstruct as CoreTextConstruct, TextType,

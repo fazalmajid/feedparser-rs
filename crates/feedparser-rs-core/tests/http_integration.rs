@@ -3,8 +3,8 @@
 #[cfg(feature = "http")]
 #[allow(clippy::significant_drop_tightening)]
 mod http_tests {
-    use feedparser_rs_core::FeedError;
-    use feedparser_rs_core::http::{FeedHttpClient, FeedHttpResponse};
+    use feedparser_rs::FeedError;
+    use feedparser_rs::http::{FeedHttpClient, FeedHttpResponse};
     use flate2::Compression;
     use flate2::write::GzEncoder;
     use reqwest::blocking::Client;

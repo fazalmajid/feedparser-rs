@@ -22,7 +22,7 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::sanitize::sanitize_html;
+/// use feedparser_rs::util::sanitize::sanitize_html;
 ///
 /// let unsafe_html = r#"<p>Hello</p><script>alert('XSS')</script>"#;
 /// let safe_html = sanitize_html(unsafe_html);
@@ -112,7 +112,7 @@ pub fn sanitize_html(input: &str) -> String {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::sanitize::decode_entities;
+/// use feedparser_rs::util::sanitize::decode_entities;
 ///
 /// assert_eq!(decode_entities("&lt;p&gt;Hello&lt;/p&gt;"), "<p>Hello</p>");
 /// assert_eq!(decode_entities("&amp;amp;"), "&amp;");
@@ -130,7 +130,7 @@ pub fn decode_entities(input: &str) -> String {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::sanitize::sanitize_and_decode;
+/// use feedparser_rs::util::sanitize::sanitize_and_decode;
 ///
 /// let input = "&lt;p&gt;Safe&lt;/p&gt;&lt;script&gt;alert('XSS')&lt;/script&gt;";
 /// let output = sanitize_and_decode(input);
@@ -146,7 +146,7 @@ pub fn sanitize_and_decode(input: &str) -> String {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::sanitize::strip_tags;
+/// use feedparser_rs::util::sanitize::strip_tags;
 ///
 /// assert_eq!(strip_tags("<p>Hello <b>world</b></p>"), "Hello world");
 /// ```

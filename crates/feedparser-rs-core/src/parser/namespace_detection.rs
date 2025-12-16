@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```ignore
-//! use feedparser_rs_core::parser::namespace_detection::namespaces;
+//! use feedparser_rs::parser::namespace_detection::namespaces;
 //!
 //! let tag_name = b"dc:creator";
 //! if let Some(element) = namespaces::DC.matches(tag_name) {
@@ -33,7 +33,7 @@ impl NamespacePrefix {
     /// # Examples
     ///
     /// ```ignore
-    /// use feedparser_rs_core::parser::namespace_detection::NamespacePrefix;
+    /// use feedparser_rs::parser::namespace_detection::NamespacePrefix;
     ///
     /// const CUSTOM: NamespacePrefix = NamespacePrefix::new("custom:");
     /// ```
@@ -64,7 +64,7 @@ impl NamespacePrefix {
     /// # Examples
     ///
     /// ```ignore
-    /// use feedparser_rs_core::parser::namespace_detection::namespaces;
+    /// use feedparser_rs::parser::namespace_detection::namespaces;
     ///
     /// assert_eq!(namespaces::DC.matches(b"dc:creator"), Some("creator"));
     /// assert_eq!(namespaces::DC.matches(b"content:encoded"), None);
@@ -96,7 +96,7 @@ impl NamespacePrefix {
     /// # Examples
     ///
     /// ```ignore
-    /// use feedparser_rs_core::parser::namespace_detection::namespaces;
+    /// use feedparser_rs::parser::namespace_detection::namespaces;
     ///
     /// assert_eq!(namespaces::DC.prefix(), "dc:");
     /// ```
@@ -130,7 +130,7 @@ impl NamespacePrefix {
 /// # Examples
 ///
 /// ```ignore
-/// use feedparser_rs_core::parser::namespace_detection::namespaces;
+/// use feedparser_rs::parser::namespace_detection::namespaces;
 ///
 /// let tag = b"itunes:author";
 /// if let Some(element) = namespaces::ITUNES.matches(tag) {

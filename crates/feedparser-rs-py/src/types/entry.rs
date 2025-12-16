@@ -1,4 +1,4 @@
-use feedparser_rs_core::Entry as CoreEntry;
+use feedparser_rs::Entry as CoreEntry;
 use pyo3::prelude::*;
 
 use super::common::{PyContent, PyEnclosure, PyLink, PyPerson, PySource, PyTag, PyTextConstruct};

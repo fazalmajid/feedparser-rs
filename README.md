@@ -1,10 +1,10 @@
 # feedparser-rs
 
-[![Crates.io](https://img.shields.io/crates/v/feedparser-rs-core)](https://crates.io/crates/feedparser-rs-core)
-[![docs.rs](https://img.shields.io/docsrs/feedparser-rs-core)](https://docs.rs/feedparser-rs-core)
+[![Crates.io](https://img.shields.io/crates/v/feedparser-rs)](https://crates.io/crates/feedparser-rs)
+[![docs.rs](https://img.shields.io/docsrs/feedparser-rs)](https://docs.rs/feedparser-rs)
 [![CI](https://img.shields.io/github/actions/workflow/status/bug-ops/feedparser-rs/ci.yml?branch=main)](https://github.com/bug-ops/feedparser-rs/actions)
 [![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
-[![License](https://img.shields.io/crates/l/feedparser-rs-core)](LICENSE-MIT)
+[![License](https://img.shields.io/crates/l/feedparser-rs)](LICENSE-MIT)
 
 High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bindings. A drop-in replacement for Python's `feedparser` library with 10-100x performance improvement.
 
@@ -21,14 +21,14 @@ High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bin
 ### Rust
 
 ```bash
-cargo add feedparser-rs-core
+cargo add feedparser-rs
 ```
 
 Or add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-feedparser-rs-core = "0.1"
+feedparser-rs = "0.1"
 ```
 
 > [!IMPORTANT]
@@ -55,7 +55,7 @@ pip install feedparser-rs
 ### Rust Usage
 
 ```rust
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let xml = r#"
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #### Fetching from URL
 
 ```rust
-use feedparser_rs_core::fetch_and_parse;
+use feedparser_rs::fetch_and_parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let feed = fetch_and_parse("https://example.com/feed.xml")?;
@@ -144,7 +144,7 @@ To disable HTTP support:
 
 ```toml
 [dependencies]
-feedparser-rs-core = { version = "0.1", default-features = false }
+feedparser-rs = { version = "0.1", default-features = false }
 ```
 
 ## Workspace Structure
@@ -153,7 +153,7 @@ This repository contains multiple crates:
 
 | Crate | Description | Package |
 |-------|-------------|---------|
-| [`feedparser-rs-core`](crates/feedparser-rs-core) | Core Rust parser | [crates.io](https://crates.io/crates/feedparser-rs-core) |
+| [`feedparser-rs`](crates/feedparser-rs) | Core Rust parser | [crates.io](https://crates.io/crates/feedparser-rs) |
 | [`feedparser-rs-node`](crates/feedparser-rs-node) | Node.js bindings | [npm](https://www.npmjs.com/package/feedparser-rs) |
 | [`feedparser-rs-py`](crates/feedparser-rs-py) | Python bindings | [PyPI](https://pypi.org/project/feedparser-rs) |
 

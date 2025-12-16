@@ -1,4 +1,4 @@
-# feedparser-rs-core
+# feedparser-rs
 
 High-performance RSS/Atom/JSON Feed parser written in Rust.
 
@@ -18,13 +18,13 @@ This is the core parsing library that powers the Python and Node.js bindings.
 
 ```toml
 [dependencies]
-feedparser-rs-core = "0.1"
+feedparser-rs = "0.1"
 ```
 
 ## Quick Start
 
 ```rust
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 
 let xml = r#"
     <?xml version="1.0"?>
@@ -42,7 +42,7 @@ let xml = r#"
 let feed = parse(xml.as_bytes())?;
 assert_eq!(feed.feed.title.as_deref(), Some("My Blog"));
 assert_eq!(feed.entries.len(), 1);
-# Ok::<(), feedparser_rs_core::FeedError>(())
+# Ok::<(), feedparser_rs::FeedError>(())
 ```
 
 ## HTTP Fetching
@@ -50,7 +50,7 @@ assert_eq!(feed.entries.len(), 1);
 Fetch feeds directly from URLs with automatic compression handling:
 
 ```rust
-use feedparser_rs_core::parse_url;
+use feedparser_rs::parse_url;
 
 let feed = parse_url("https://example.com/feed.xml", None, None, None)?;
 println!("Title: {:?}", feed.feed.title);
@@ -67,14 +67,14 @@ let feed2 = parse_url(
 if feed2.status == Some(304) {
     println!("Not modified, use cached version");
 }
-# Ok::<(), feedparser_rs_core::FeedError>(())
+# Ok::<(), feedparser_rs::FeedError>(())
 ```
 
 To disable HTTP support and reduce dependencies:
 
 ```toml
 [dependencies]
-feedparser-rs-core = { version = "0.1", default-features = false }
+feedparser-rs = { version = "0.1", default-features = false }
 ```
 
 ## Platform Bindings
@@ -96,14 +96,14 @@ See [benchmarks/](../../benchmarks/) for detailed benchmark code.
 
 ## API Documentation
 
-For full API documentation, see [docs.rs/feedparser-rs-core](https://docs.rs/feedparser-rs-core).
+For full API documentation, see [docs.rs/feedparser-rs](https://docs.rs/feedparser-rs).
 
 ## Error Handling
 
 The library uses a "bozo" flag (like feedparser) to indicate parsing errors while still returning partial results:
 
 ```rust
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 
 let malformed = b"<rss><channel><title>Broken</title></rss>";
 let feed = parse(malformed)?;
@@ -112,7 +112,7 @@ assert!(feed.bozo);
 assert!(feed.bozo_exception.is_some());
 // Still can access parsed data
 assert_eq!(feed.feed.title.as_deref(), Some("Broken"));
-# Ok::<(), feedparser_rs_core::FeedError>(())
+# Ok::<(), feedparser_rs::FeedError>(())
 ```
 
 ## Parser Limits
@@ -120,7 +120,7 @@ assert_eq!(feed.feed.title.as_deref(), Some("Broken"));
 To prevent resource exhaustion, the parser enforces limits:
 
 ```rust
-use feedparser_rs_core::{parse_with_limits, ParserLimits};
+use feedparser_rs::{parse_with_limits, ParserLimits};
 
 let limits = ParserLimits {
     max_entries: 100,
@@ -129,7 +129,7 @@ let limits = ParserLimits {
 };
 
 let feed = parse_with_limits(xml.as_bytes(), limits)?;
-# Ok::<(), feedparser_rs_core::FeedError>(())
+# Ok::<(), feedparser_rs::FeedError>(())
 ```
 
 ## License
@@ -139,5 +139,5 @@ MIT OR Apache-2.0
 ## Links
 
 - [GitHub](https://github.com/bug-ops/feedparser-rs)
-- [Documentation](https://docs.rs/feedparser-rs-core)
+- [Documentation](https://docs.rs/feedparser-rs)
 - [Changelog](../../CHANGELOG.md)

@@ -21,7 +21,7 @@ use std::fmt::Debug;
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::types::generics::DetailedField;
+/// use feedparser_rs::types::generics::DetailedField;
 ///
 /// // Simple value only
 /// let title: DetailedField<String, ()> = DetailedField::from_value("My Title".to_string());
@@ -135,7 +135,7 @@ impl<V, D> From<(V, D)> for DetailedField<V, D> {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::types::LimitedCollectionExt;
+/// use feedparser_rs::types::LimitedCollectionExt;
 ///
 /// let mut vec = Vec::new();
 /// assert!(vec.try_push_limited("first", 2));
@@ -209,8 +209,8 @@ pub trait FromAttributes: Sized {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::types::generics::ParseFrom;
-/// use feedparser_rs_core::types::Person;
+/// use feedparser_rs::types::generics::ParseFrom;
+/// use feedparser_rs::types::Person;
 /// use serde_json::json;
 ///
 /// let json = json!({"name": "John Doe", "url": "https://example.com"});

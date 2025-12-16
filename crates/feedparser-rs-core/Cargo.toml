@@ -1,5 +1,5 @@
 [package]
-name = "feedparser-rs-core"
+name = "feedparser-rs"
 description = "High-performance RSS/Atom/JSON Feed parser"
 readme = "README.md"
 version.workspace = true

@@ -16,8 +16,8 @@
 /// # Example
 ///
 /// ```
-/// use feedparser_rs_core::namespace::dublin_core;
-/// use feedparser_rs_core::FeedMeta;
+/// use feedparser_rs::namespace::dublin_core;
+/// use feedparser_rs::FeedMeta;
 ///
 /// let mut feed = FeedMeta::default();
 /// dublin_core::handle_feed_element("creator", "John Doe", &mut feed);

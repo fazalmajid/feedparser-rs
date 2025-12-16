@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```
-//! use feedparser_rs_core::parse;
+//! use feedparser_rs::parse;
 //!
 //! let xml = r#"
 //!     <?xml version="1.0"?>
@@ -106,7 +106,7 @@ pub use http::{FeedHttpClient, FeedHttpResponse};
 /// # Examples
 ///
 /// ```no_run
-/// use feedparser_rs_core::parse_url;
+/// use feedparser_rs::parse_url;
 ///
 /// // First fetch
 /// let feed = parse_url("https://example.com/feed.xml", None, None, None).unwrap();
@@ -196,7 +196,7 @@ pub fn parse_url(
 /// # Examples
 ///
 /// ```no_run
-/// use feedparser_rs_core::{parse_url_with_limits, ParserLimits};
+/// use feedparser_rs::{parse_url_with_limits, ParserLimits};
 ///
 /// let limits = ParserLimits::strict();
 /// let feed = parse_url_with_limits(
