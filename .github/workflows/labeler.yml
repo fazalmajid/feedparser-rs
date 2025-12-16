@@ -21,12 +21,6 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          # For pull_request_target, we need to check out the PR head
-          ref: ${{ github.event.pull_request.head.sha }}
-
       - name: Auto-label based on changed files
         uses: actions/labeler@v5
         with:
