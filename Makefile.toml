@@ -186,7 +186,7 @@ dependencies = ["test-node-install", "test-node-build", "test-node-run"]
 description = "Install Node.js dependencies"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "pnpm install --frozen-lockfile"
+script = "pnpm install"
 
 [tasks.test-node-build]
 description = "Build Node.js bindings"
@@ -263,7 +263,7 @@ dependencies = ["coverage-node-install", "coverage-node-build", "coverage-node-r
 description = "Install Node.js dependencies for coverage"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "pnpm install --frozen-lockfile"
+script = "pnpm install"
 
 [tasks.coverage-node-build]
 description = "Build Node.js bindings for coverage"
