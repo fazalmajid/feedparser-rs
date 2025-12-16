@@ -40,28 +40,17 @@ use encoding_rs::{Encoding, UTF_8};
 /// assert_eq!(detect_encoding(data), "windows-1252");
 /// ```
 pub fn detect_encoding(data: &[u8]) -> &'static str {
-    if data.starts_with(&[0xEF, 0xBB, 0xBF]) {
-        return "UTF-8";
-    }
-    // UTF-32 BOMs must be checked BEFORE UTF-16 BOMs
-    // because UTF-32LE BOM (FF FE 00 00) starts with UTF-16LE BOM (FF FE)
-    if data.starts_with(&[0x00, 0x00, 0xFE, 0xFF]) {
-        return "UTF-32BE";
-    }
-    if data.starts_with(&[0xFF, 0xFE, 0x00, 0x00]) {
-        return "UTF-32LE";
-    }
-    if data.starts_with(&[0xFF, 0xFE]) {
-        return "UTF-16LE";
-    }
-    if data.starts_with(&[0xFE, 0xFF]) {
-        return "UTF-16BE";
+    // Check BOM first
+    if let Some(bom_encoding) = detect_bom(data) {
+        return bom_encoding;
     }
 
+    // Check XML declaration
     if let Some(encoding) = extract_xml_encoding(data) {
         return encoding;
     }
 
+    // Default to UTF-8
     "UTF-8"
 }
 

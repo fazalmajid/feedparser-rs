@@ -12,7 +12,6 @@ use crate::{
     error::{FeedError, Result},
     namespace::dublin_core,
     types::{Entry, FeedVersion, Image, Link, ParsedFeed, TextConstruct, TextType},
-    util::parse_date,
 };
 use quick_xml::{Reader, events::Event};
 
@@ -311,12 +310,8 @@ fn parse_item(
                         if let Some(dc_element) = is_dc_tag(full_name.as_ref()) {
                             let dc_elem = dc_element.to_string();
                             let text = read_text(reader, buf, limits)?;
+                            // dublin_core::handle_entry_element already handles dc:date -> published
                             dublin_core::handle_entry_element(&dc_elem, &text, &mut entry);
-
-                            // Also handle dc:date for published date
-                            if dc_elem == "date" {
-                                entry.published = parse_date(&text);
-                            }
                         } else {
                             skip_element(reader, buf, limits, *depth)?;
                         }
@@ -350,7 +345,7 @@ fn parse_image(
 
     loop {
         match reader.read_event_into(buf) {
-            Ok(Event::Start(e)) => {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
                 if *depth > limits.max_nesting_depth {
                     return Err(FeedError::InvalidFormat(format!(
