@@ -19,6 +19,28 @@ use super::common::{
     is_itunes_tag, is_media_tag, read_text, skip_element,
 };
 
+/// Extract attributes as owned key-value pairs
+#[inline]
+fn collect_attributes(e: &quick_xml::events::BytesStart) -> Vec<(Vec<u8>, String)> {
+    e.attributes()
+        .flatten()
+        .filter_map(|attr| {
+            attr.unescape_value()
+                .ok()
+                .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
+        })
+        .collect()
+}
+
+/// Find attribute value by key
+#[inline]
+fn find_attribute<'a>(attrs: &'a [(Vec<u8>, String)], key: &[u8]) -> Option<&'a str> {
+    attrs
+        .iter()
+        .find(|(k, _)| k.as_slice() == key)
+        .map(|(_, v)| v.as_str())
+}
+
 /// Parse RSS 2.0 feed from raw bytes
 ///
 /// Parses an RSS 2.0 feed in tolerant mode, setting the bozo flag
@@ -105,17 +127,7 @@ fn parse_channel(
                 check_depth(*depth, limits.max_nesting_depth)?;
 
                 let tag = e.name().as_ref().to_vec();
-
-                // Clone attributes to owned values to avoid lifetime issues
-                let attrs: Vec<(Vec<u8>, String)> = e
-                    .attributes()
-                    .flatten()
-                    .filter_map(|attr| {
-                        attr.unescape_value()
-                            .ok()
-                            .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
-                    })
-                    .collect();
+                let attrs = collect_attributes(&e);
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 match tag.as_slice() {
@@ -292,10 +304,8 @@ fn parse_channel_itunes(
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
         let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-        for (key, value) in attrs {
-            if key.as_slice() == b"href" {
-                itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
+        if let Some(value) = find_attribute(attrs, b"href") {
+            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
         }
         Ok(true)
     } else if is_itunes_tag(tag, b"keywords") {
@@ -325,12 +335,9 @@ fn parse_itunes_category(
     feed: &mut ParsedFeed,
     limits: &ParserLimits,
 ) {
-    let mut category_text = String::new();
-    for (key, value) in attrs {
-        if key.as_slice() == b"text" {
-            category_text = truncate_to_length(value, limits.max_attribute_length);
-        }
-    }
+    let category_text = find_attribute(attrs, b"text")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
 
     // Parse potential nested subcategory
     let mut subcategory_text = None;
@@ -403,12 +410,9 @@ fn parse_channel_podcast(
         podcast.guid = Some(text);
         Ok(true)
     } else if tag.starts_with(b"podcast:funding") {
-        let mut url = String::new();
-        for (key, value) in attrs {
-            if key.as_slice() == b"url" {
-                url = truncate_to_length(value, limits.max_attribute_length);
-            }
-        }
+        let url = find_attribute(attrs, b"url")
+            .map(|v| truncate_to_length(v, limits.max_attribute_length))
+            .unwrap_or_default();
         let message_text = read_text(reader, buf, limits)?;
         let message = if message_text.is_empty() {
             None
@@ -470,17 +474,7 @@ fn parse_item(
                 check_depth(*depth, limits.max_nesting_depth)?;
 
                 let tag = e.name().as_ref().to_vec();
-
-                // Clone attributes to owned values to avoid lifetime issues
-                let attrs: Vec<(Vec<u8>, String)> = e
-                    .attributes()
-                    .flatten()
-                    .filter_map(|attr| {
-                        attr.unescape_value()
-                            .ok()
-                            .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
-                    })
-                    .collect();
+                let attrs = collect_attributes(e);
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 match tag.as_slice() {
@@ -627,10 +621,8 @@ fn parse_item_itunes(
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
         let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-        for (key, value) in attrs {
-            if key.as_slice() == b"href" {
-                itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
+        if let Some(value) = find_attribute(attrs, b"href") {
+            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
         }
         Ok(true)
     } else if is_itunes_tag(tag, b"episode") {
@@ -687,28 +679,15 @@ fn parse_podcast_transcript(
     is_empty: bool,
     depth: usize,
 ) -> Result<()> {
-    let mut url = String::new();
-    let mut transcript_type = None;
-    let mut language = None;
-    let mut rel = None;
-
-    for (key, value) in attrs {
-        match key.as_slice() {
-            b"url" => {
-                url = truncate_to_length(value, limits.max_attribute_length);
-            }
-            b"type" => {
-                transcript_type = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            b"language" => {
-                language = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            b"rel" => {
-                rel = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            _ => {}
-        }
-    }
+    let url = find_attribute(attrs, b"url")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
+    let transcript_type =
+        find_attribute(attrs, b"type").map(|v| truncate_to_length(v, limits.max_attribute_length));
+    let language = find_attribute(attrs, b"language")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length));
+    let rel =
+        find_attribute(attrs, b"rel").map(|v| truncate_to_length(v, limits.max_attribute_length));
 
     if !url.is_empty() {
         entry.podcast_transcripts.push(PodcastTranscript {
@@ -734,28 +713,14 @@ fn parse_podcast_person(
     entry: &mut Entry,
     limits: &ParserLimits,
 ) -> Result<()> {
-    let mut role = None;
-    let mut group = None;
-    let mut img = None;
-    let mut href = None;
-
-    for (key, value) in attrs {
-        match key.as_slice() {
-            b"role" => {
-                role = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            b"group" => {
-                group = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            b"img" => {
-                img = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            b"href" => {
-                href = Some(truncate_to_length(value, limits.max_attribute_length));
-            }
-            _ => {}
-        }
-    }
+    let role =
+        find_attribute(attrs, b"role").map(|v| truncate_to_length(v, limits.max_attribute_length));
+    let group =
+        find_attribute(attrs, b"group").map(|v| truncate_to_length(v, limits.max_attribute_length));
+    let img =
+        find_attribute(attrs, b"img").map(|v| truncate_to_length(v, limits.max_attribute_length));
+    let href =
+        find_attribute(attrs, b"href").map(|v| truncate_to_length(v, limits.max_attribute_length));
 
     let name = read_text(reader, buf, limits)?;
     if !name.is_empty() {
@@ -825,18 +790,12 @@ fn parse_item_media(
 ) -> Result<()> {
     match media_element {
         "thumbnail" => {
-            // Extract thumbnail attributes
-            let mut url = String::new();
-            let mut width = None;
-            let mut height = None;
-            for (key, value) in attrs {
-                match key.as_slice() {
-                    b"url" => url = truncate_to_length(value, limits.max_attribute_length),
-                    b"width" => width = value.parse().ok(),
-                    b"height" => height = value.parse().ok(),
-                    _ => {}
-                }
-            }
+            let url = find_attribute(attrs, b"url")
+                .map(|v| truncate_to_length(v, limits.max_attribute_length))
+                .unwrap_or_default();
+            let width = find_attribute(attrs, b"width").and_then(|v| v.parse().ok());
+            let height = find_attribute(attrs, b"height").and_then(|v| v.parse().ok());
+
             if !url.is_empty() {
                 entry
                     .media_thumbnails
@@ -847,26 +806,16 @@ fn parse_item_media(
             }
         }
         "content" => {
-            // Extract content attributes
-            let mut url = String::new();
-            let mut content_type = None;
-            let mut filesize = None;
-            let mut duration = None;
-            let mut width = None;
-            let mut height = None;
-            for (key, value) in attrs {
-                match key.as_slice() {
-                    b"url" => url = truncate_to_length(value, limits.max_attribute_length),
-                    b"type" => {
-                        content_type = Some(truncate_to_length(value, limits.max_attribute_length));
-                    }
-                    b"fileSize" => filesize = value.parse().ok(),
-                    b"duration" => duration = value.parse().ok(),
-                    b"width" => width = value.parse().ok(),
-                    b"height" => height = value.parse().ok(),
-                    _ => {}
-                }
-            }
+            let url = find_attribute(attrs, b"url")
+                .map(|v| truncate_to_length(v, limits.max_attribute_length))
+                .unwrap_or_default();
+            let content_type = find_attribute(attrs, b"type")
+                .map(|v| truncate_to_length(v, limits.max_attribute_length));
+            let filesize = find_attribute(attrs, b"fileSize").and_then(|v| v.parse().ok());
+            let duration = find_attribute(attrs, b"duration").and_then(|v| v.parse().ok());
+            let width = find_attribute(attrs, b"width").and_then(|v| v.parse().ok());
+            let height = find_attribute(attrs, b"height").and_then(|v| v.parse().ok());
+
             if !url.is_empty() {
                 entry.media_content.try_push_limited(
                     MediaContent {
