@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-12-16
+
+### Added
+- RSS 1.0 (RDF) parser support with full namespace handling
+- GeoRSS namespace support (point, line, polygon, box geometries)
+- Creative Commons namespace support with license links (`rel="license"`)
+- `ParseOptions` API with `strict()`, `permissive()`, `default()` presets
+- Base URL resolution (`xml:base`) for relative URLs in Atom feeds
+- HTTP `Content-Type` charset extraction for encoding detection
+- Year-only (`2024`) and year-month (`2024-12`) date format parsing
+- GitHub Copilot code review agents configuration
+
+### Fixed
+- Critical SSRF vulnerabilities with URL validation and domain allowlisting
+- Input validation for parser limits to prevent DoS attacks
+
+### Changed
+- Refactored parsers with `collect_attributes` and `find_attribute` helpers
+- npm publishing now uses OIDC trusted publishing with provenance attestations
+- Improved test coverage to 83.78%
+
+### Security
+- Added SSRF protection for HTTP fetching with configurable domain restrictions
+- Strengthened input validation for all parser limit parameters
+
 ## [0.1.8] - 2025-12-16
 
 ### Added
@@ -94,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage
 - Documentation with examples
 
-[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.5...v0.1.6

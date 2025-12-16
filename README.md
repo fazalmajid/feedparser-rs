@@ -37,6 +37,8 @@ High-performance RSS/Atom/JSON Feed parser written in Rust, with Python and Node
 | Media RSS | Media attachments and metadata |
 | iTunes | Podcast metadata (author, duration, explicit) |
 | Podcast 2.0 | Chapters, transcripts, funding |
+| GeoRSS | Geographic location data (point, line, polygon, box) |
+| Creative Commons | License information with `rel="license"` links |
 
 ## Installation
 
@@ -50,7 +52,7 @@ Or add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-feedparser-rs = "0.1"
+feedparser-rs = "0.2"
 ```
 
 > [!IMPORTANT]
@@ -166,7 +168,7 @@ To disable HTTP support and reduce dependencies:
 
 ```toml
 [dependencies]
-feedparser-rs = { version = "0.1", default-features = false }
+feedparser-rs = { version = "0.2", default-features = false }
 ```
 
 ## Workspace Structure
