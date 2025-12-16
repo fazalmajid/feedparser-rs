@@ -1404,4 +1404,356 @@ mod tests {
         let feed = parse_rss20(xml).unwrap();
         assert_eq!(feed.feed.title.as_deref(), Some("Test"));
     }
+
+    // PRIORITY 1: iTunes Item-Level Tests (CRITICAL)
+
+    #[test]
+    fn test_parse_rss_itunes_episode_metadata() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <title>Test Podcast</title>
+                <item>
+                    <title>Standard Title</title>
+                    <itunes:title>iTunes Override Title</itunes:title>
+                    <itunes:duration>1:23:45</itunes:duration>
+                    <itunes:image href="https://example.com/episode-cover.jpg"/>
+                    <itunes:explicit>yes</itunes:explicit>
+                    <itunes:episode>42</itunes:episode>
+                    <itunes:season>3</itunes:season>
+                    <itunes:episodeType>full</itunes:episodeType>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(
+            !feed.bozo,
+            "Should parse iTunes episode metadata without errors"
+        );
+        assert_eq!(feed.entries.len(), 1);
+
+        let entry = &feed.entries[0];
+        let itunes = entry.itunes.as_ref().unwrap();
+
+        assert_eq!(itunes.title.as_deref(), Some("iTunes Override Title"));
+        assert_eq!(itunes.duration, Some(5025)); // 1:23:45 in seconds
+        assert_eq!(
+            itunes.image.as_deref(),
+            Some("https://example.com/episode-cover.jpg")
+        );
+        assert_eq!(itunes.explicit, Some(true));
+        assert_eq!(itunes.episode, Some(42));
+        assert_eq!(itunes.season, Some(3));
+        assert_eq!(itunes.episode_type.as_deref(), Some("full"));
+    }
+
+    #[test]
+    fn test_parse_rss_itunes_duration_formats() {
+        // Test HH:MM:SS format
+        let xml1 = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <item><itunes:duration>1:23:45</itunes:duration></item>
+            </channel>
+        </rss>"#;
+        let feed1 = parse_rss20(xml1).unwrap();
+        assert_eq!(
+            feed1.entries[0].itunes.as_ref().unwrap().duration,
+            Some(5025)
+        );
+
+        // Test MM:SS format
+        let xml2 = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <item><itunes:duration>23:45</itunes:duration></item>
+            </channel>
+        </rss>"#;
+        let feed2 = parse_rss20(xml2).unwrap();
+        assert_eq!(
+            feed2.entries[0].itunes.as_ref().unwrap().duration,
+            Some(1425)
+        );
+
+        // Test seconds-only format
+        let xml3 = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <item><itunes:duration>3661</itunes:duration></item>
+            </channel>
+        </rss>"#;
+        let feed3 = parse_rss20(xml3).unwrap();
+        assert_eq!(
+            feed3.entries[0].itunes.as_ref().unwrap().duration,
+            Some(3661)
+        );
+
+        // Test invalid format
+        let xml4 = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <item><itunes:duration>invalid</itunes:duration></item>
+            </channel>
+        </rss>"#;
+        let feed4 = parse_rss20(xml4).unwrap();
+        assert!(
+            feed4.entries[0].itunes.as_ref().unwrap().duration.is_none(),
+            "Invalid duration should result in None"
+        );
+    }
+
+    #[test]
+    fn test_parse_rss_itunes_nested_categories() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <title>Test Podcast</title>
+                <itunes:category text="Arts">
+                    <itunes:category text="Design"/>
+                </itunes:category>
+                <itunes:category text="Technology">
+                    <itunes:category text="Programming"/>
+                </itunes:category>
+                <itunes:category text="News"/>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let itunes = feed.feed.itunes.as_ref().unwrap();
+
+        assert_eq!(itunes.categories.len(), 3);
+
+        // First category with subcategory
+        assert_eq!(itunes.categories[0].text, "Arts");
+        assert_eq!(itunes.categories[0].subcategory.as_deref(), Some("Design"));
+
+        // Second category with subcategory
+        assert_eq!(itunes.categories[1].text, "Technology");
+        assert_eq!(
+            itunes.categories[1].subcategory.as_deref(),
+            Some("Programming")
+        );
+
+        // Third category without subcategory
+        assert_eq!(itunes.categories[2].text, "News");
+        assert!(itunes.categories[2].subcategory.is_none());
+    }
+
+    #[test]
+    fn test_parse_rss_itunes_owner_parsing() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <title>Test Podcast</title>
+                <itunes:owner>
+                    <itunes:name>John Smith</itunes:name>
+                    <itunes:email>john@example.com</itunes:email>
+                </itunes:owner>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let itunes = feed.feed.itunes.as_ref().unwrap();
+        let owner = itunes.owner.as_ref().unwrap();
+
+        assert_eq!(owner.name.as_deref(), Some("John Smith"));
+        assert_eq!(owner.email.as_deref(), Some("john@example.com"));
+    }
+
+    // PRIORITY 2: Podcast 2.0 Tests
+
+    #[test]
+    fn test_parse_rss_podcast_locked_and_guid() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:guid>917393e3-1c1e-5d48-8e7f-cc9c0d9f2e95</podcast:guid>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(!feed.bozo);
+
+        let podcast = feed.feed.podcast.as_ref().unwrap();
+        assert_eq!(
+            podcast.guid.as_deref(),
+            Some("917393e3-1c1e-5d48-8e7f-cc9c0d9f2e95")
+        );
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_funding() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:funding url="https://patreon.com/example">Support on Patreon</podcast:funding>
+                <podcast:funding url="https://buymeacoffee.com/example">Buy Me a Coffee</podcast:funding>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let podcast = feed.feed.podcast.as_ref().unwrap();
+
+        assert_eq!(podcast.funding.len(), 2);
+        assert_eq!(podcast.funding[0].url, "https://patreon.com/example");
+        assert_eq!(
+            podcast.funding[0].message.as_deref(),
+            Some("Support on Patreon")
+        );
+        assert_eq!(podcast.funding[1].url, "https://buymeacoffee.com/example");
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_transcript() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <item>
+                    <title>Episode 1</title>
+                    <podcast:transcript
+                        url="https://example.com/transcripts/ep1.srt"
+                        type="application/srt"
+                        language="en"
+                        rel="captions"/>
+                    <podcast:transcript
+                        url="https://example.com/transcripts/ep1.vtt"
+                        type="text/vtt"/>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.entries.len(), 1);
+
+        let transcripts = &feed.entries[0].podcast_transcripts;
+        assert_eq!(transcripts.len(), 2);
+
+        assert_eq!(
+            transcripts[0].url,
+            "https://example.com/transcripts/ep1.srt"
+        );
+        assert_eq!(
+            transcripts[0].transcript_type.as_deref(),
+            Some("application/srt")
+        );
+        assert_eq!(transcripts[0].language.as_deref(), Some("en"));
+        assert_eq!(transcripts[0].rel.as_deref(), Some("captions"));
+
+        assert_eq!(
+            transcripts[1].url,
+            "https://example.com/transcripts/ep1.vtt"
+        );
+        assert_eq!(transcripts[1].transcript_type.as_deref(), Some("text/vtt"));
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_person() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <item>
+                    <title>Episode 1</title>
+                    <podcast:person
+                        role="host"
+                        href="https://example.com/host"
+                        img="https://example.com/host.jpg">Jane Doe</podcast:person>
+                    <podcast:person role="guest">John Smith</podcast:person>
+                    <podcast:person role="editor" group="production">Bob Editor</podcast:person>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let persons = &feed.entries[0].podcast_persons;
+
+        assert_eq!(persons.len(), 3);
+
+        assert_eq!(persons[0].name, "Jane Doe");
+        assert_eq!(persons[0].role.as_deref(), Some("host"));
+        assert_eq!(persons[0].href.as_deref(), Some("https://example.com/host"));
+        assert_eq!(
+            persons[0].img.as_deref(),
+            Some("https://example.com/host.jpg")
+        );
+
+        assert_eq!(persons[1].name, "John Smith");
+        assert_eq!(persons[1].role.as_deref(), Some("guest"));
+
+        assert_eq!(persons[2].name, "Bob Editor");
+        assert_eq!(persons[2].role.as_deref(), Some("editor"));
+        assert_eq!(persons[2].group.as_deref(), Some("production"));
+    }
+
+    // PRIORITY 3: Namespace Tests
+
+    #[test]
+    fn test_parse_rss_dublin_core_channel() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+                <title>Test Feed</title>
+                <dc:creator>Jane Doe</dc:creator>
+                <dc:publisher>Example Publishing</dc:publisher>
+                <dc:date>2024-12-16T10:00:00Z</dc:date>
+                <dc:rights>CC BY 4.0</dc:rights>
+                <dc:subject>Technology</dc:subject>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(!feed.bozo);
+
+        // DC creator should populate author
+        assert_eq!(feed.feed.author.as_deref(), Some("Jane Doe"));
+
+        // DC publisher
+        assert_eq!(feed.feed.publisher.as_deref(), Some("Example Publishing"));
+
+        // DC date should populate updated
+        assert!(feed.feed.updated.is_some());
+
+        // DC rights
+        assert_eq!(feed.feed.rights.as_deref(), Some("CC BY 4.0"));
+
+        // DC subject should add tags
+        assert!(feed.feed.tags.iter().any(|t| t.term == "Technology"));
+    }
+
+    #[test]
+    fn test_parse_rss_content_encoded() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+            <channel>
+                <item>
+                    <title>Test Item</title>
+                    <description>Plain text summary</description>
+                    <content:encoded><![CDATA[
+                        <p>This is <strong>HTML content</strong> with <a href="https://example.com">links</a></p>
+                        <ul>
+                            <li>Item 1</li>
+                            <li>Item 2</li>
+                        </ul>
+                    ]]></content:encoded>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let entry = &feed.entries[0];
+
+        // Summary should be plain description
+        assert_eq!(entry.summary.as_deref(), Some("Plain text summary"));
+
+        // Content should contain the HTML
+        assert_eq!(entry.content.len(), 1);
+        assert!(
+            entry.content[0]
+                .value
+                .contains("<strong>HTML content</strong>")
+        );
+        assert!(entry.content[0].value.contains("<ul>"));
+    }
 }
