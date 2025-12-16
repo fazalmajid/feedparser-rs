@@ -1,5 +1,10 @@
 # feedparser-rs
 
+[![Crates.io](https://img.shields.io/crates/v/feedparser-rs)](https://crates.io/crates/feedparser-rs)
+[![docs.rs](https://img.shields.io/docsrs/feedparser-rs)](https://docs.rs/feedparser-rs)
+[![MSRV](https://img.shields.io/crates/msrv/feedparser-rs)](https://github.com/bug-ops/feedparser-rs)
+[![License](https://img.shields.io/crates/l/feedparser-rs)](LICENSE)
+
 High-performance RSS/Atom/JSON Feed parser written in Rust.
 
 This is the core parsing library that powers the Python and Node.js bindings.
@@ -12,14 +17,24 @@ This is the core parsing library that powers the Python and Node.js bindings.
 - **Safe**: No unsafe code, comprehensive error handling
 - **HTTP support**: Fetch feeds from URLs with compression and conditional GET
 - **Podcast support**: iTunes and Podcast 2.0 namespace extensions
-- **Well-tested**: Extensive test coverage with real-world feed fixtures
+- **Namespace extensions**: Dublin Core, Media RSS, GeoRSS, Creative Commons
+- **Well-tested**: 83%+ test coverage with real-world feed fixtures
 
 ## Installation
 
+```bash
+cargo add feedparser-rs
+```
+
+Or add to your `Cargo.toml`:
+
 ```toml
 [dependencies]
-feedparser-rs = "0.1"
+feedparser-rs = "0.2"
 ```
+
+> [!IMPORTANT]
+> Requires Rust 1.88.0 or later (edition 2024).
 
 ## Quick Start
 
@@ -70,31 +85,25 @@ if feed2.status == Some(304) {
 # Ok::<(), feedparser_rs::FeedError>(())
 ```
 
+> [!TIP]
+> Use conditional GET with ETag/Last-Modified to minimize bandwidth when polling feeds.
+
 To disable HTTP support and reduce dependencies:
 
 ```toml
 [dependencies]
-feedparser-rs = { version = "0.1", default-features = false }
+feedparser-rs = { version = "0.2", default-features = false }
 ```
 
-## Platform Bindings
+## Cargo Features
 
-- **Node.js**: [`feedparser-rs`](https://www.npmjs.com/package/feedparser-rs) on npm
-- **Python**: [`feedparser-rs`](https://pypi.org/project/feedparser-rs/) on PyPI (coming soon)
-
-## Performance
-
-Rust implementation provides significant performance improvements over interpreted alternatives.
-
-See [benchmarks/](../../benchmarks/) for benchmark code and methodology.
-
-## API Documentation
-
-For full API documentation, see [docs.rs/feedparser-rs](https://docs.rs/feedparser-rs).
+| Feature | Description | Default |
+|---------|-------------|---------|
+| `http` | URL fetching with reqwest (gzip/deflate/brotli) | Yes |
 
 ## Error Handling
 
-The library uses a "bozo" flag (like feedparser) to indicate parsing errors while still returning partial results:
+The library uses a "bozo" flag (like Python's feedparser) to indicate parsing errors while still returning partial results:
 
 ```rust
 use feedparser_rs::parse;
@@ -111,7 +120,7 @@ assert_eq!(feed.feed.title.as_deref(), Some("Broken"));
 
 ## Parser Limits
 
-To prevent resource exhaustion, the parser enforces limits:
+To prevent resource exhaustion (DoS protection), the parser enforces configurable limits:
 
 ```rust
 use feedparser_rs::{parse_with_limits, ParserLimits};
@@ -126,12 +135,31 @@ let feed = parse_with_limits(xml.as_bytes(), limits)?;
 # Ok::<(), feedparser_rs::FeedError>(())
 ```
 
+> [!NOTE]
+> Default limits are generous for typical feeds. Use `ParserLimits::strict()` for untrusted input.
+
+## Platform Bindings
+
+- **Node.js**: [`feedparser-rs`](https://www.npmjs.com/package/feedparser-rs) on npm
+- **Python**: [`feedparser-rs`](https://pypi.org/project/feedparser-rs/) on PyPI
+
+## MSRV Policy
+
+Minimum Supported Rust Version: **1.88.0** (edition 2024).
+
+MSRV increases are considered breaking changes and will result in a minor version bump.
+
 ## License
 
-MIT OR Apache-2.0
+Licensed under either of:
+
+- [Apache License, Version 2.0](../../LICENSE-APACHE)
+- [MIT License](../../LICENSE-MIT)
+
+at your option.
 
 ## Links
 
 - [GitHub](https://github.com/bug-ops/feedparser-rs)
-- [Documentation](https://docs.rs/feedparser-rs)
+- [API Documentation](https://docs.rs/feedparser-rs)
 - [Changelog](../../CHANGELOG.md)

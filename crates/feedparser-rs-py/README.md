@@ -23,6 +23,9 @@ High-performance RSS/Atom/JSON Feed parser for Python with feedparser-compatible
 pip install feedparser-rs
 ```
 
+> [!IMPORTANT]
+> Requires Python 3.9 or later.
+
 ## Usage
 
 ### Basic Parsing
@@ -44,6 +47,9 @@ for entry in d.entries:
     print(entry.published_parsed)  # time.struct_time
 ```
 
+> [!NOTE]
+> Date fields like `published_parsed` return `time.struct_time` for feedparser compatibility.
+
 ### Fetching from URL
 
 ```python
@@ -60,7 +66,8 @@ limits = feedparser_rs.ParserLimits(max_entries=100)
 d = feedparser_rs.parse_url_with_limits('https://example.com/feed.xml', limits)
 ```
 
-> **Note**: `parse_url` supports automatic compression (gzip, deflate, brotli) and follows redirects.
+> [!TIP]
+> `parse_url` supports automatic compression (gzip, deflate, brotli) and follows redirects.
 
 ## Migration from feedparser
 
@@ -142,9 +149,17 @@ for entry in d.entries:
 
 - `ParserLimits` — Resource limits configuration
 
-## Requirements
+## Platform Support
 
-- Python >= 3.9
+Pre-built wheels available for:
+
+| Platform | Architecture |
+|----------|--------------|
+| macOS | Intel (x64), Apple Silicon (arm64) |
+| Linux | x64, arm64 |
+| Windows | x64 |
+
+Supported Python versions: 3.9, 3.10, 3.11, 3.12, 3.13
 
 ## Development
 
@@ -157,11 +172,16 @@ maturin develop
 
 ## License
 
-MIT OR Apache-2.0
+Licensed under either of:
+
+- [Apache License, Version 2.0](../../LICENSE-APACHE)
+- [MIT License](../../LICENSE-MIT)
+
+at your option.
 
 ## Links
 
 - [GitHub](https://github.com/bug-ops/feedparser-rs)
 - [PyPI](https://pypi.org/project/feedparser-rs/)
-- [Documentation](https://github.com/bug-ops/feedparser-rs#python)
-- [Issues](https://github.com/bug-ops/feedparser-rs/issues)
+- [Rust API Documentation](https://docs.rs/feedparser-rs)
+- [Changelog](../../CHANGELOG.md)
