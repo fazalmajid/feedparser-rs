@@ -182,8 +182,10 @@ jobs:
           shared-key: "test-rust-${{ matrix.os }}"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install cargo-make
-        uses: taiki-e/install-action@cargo-make
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-make,cargo-nextest
 
       - name: Run Rust tests
         run: cargo make ci-test-rust
