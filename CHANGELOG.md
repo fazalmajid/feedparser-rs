@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-12-16
+
+### Added
+- Export `parse_url` and `parse_url_with_limits` in Python bindings
+- Supported Formats and Namespace Extensions tables in README
+
+### Fixed
+- Python README now documents URL fetching (was marked as not implemented)
+- Repository URLs in Python package metadata
+
+### Changed
+- Improved test coverage to 83.78%
+
 ## [0.1.7] - 2025-12-16
 
 ### Changed
@@ -81,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage
 - Documentation with examples
 
-[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.4...v0.1.5
