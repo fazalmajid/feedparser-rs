@@ -18,6 +18,26 @@ use super::common::{
     EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, init_feed, read_text, skip_element,
 };
 
+/// Limits string to maximum length by character count
+///
+/// Uses efficient byte-length check before expensive char iteration.
+/// Prevents oversized attribute/text values that could cause memory issues.
+///
+/// # Examples
+///
+/// ```ignore
+/// let limited = limit_string("hello world", 5); // "hello"
+/// let short = limit_string("hi", 100);          // "hi"
+/// ```
+#[inline]
+fn limit_string(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        s.chars().take(max_len).collect()
+    }
+}
+
 /// Parse RSS 2.0 feed from raw bytes
 ///
 /// Parses an RSS 2.0 feed in tolerant mode, setting the bozo flag
@@ -208,7 +228,7 @@ fn parse_channel(
                                     && let Ok(value) = attr.unescape_value()
                                 {
                                     category_text =
-                                        value.chars().take(limits.max_attribute_length).collect();
+                                        limit_string(&value, limits.max_attribute_length);
                                 }
                             }
 
@@ -294,9 +314,8 @@ fn parse_channel(
                                 if attr.key.as_ref() == b"href"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    itunes.image = Some(
-                                        value.chars().take(limits.max_attribute_length).collect(),
-                                    );
+                                    itunes.image =
+                                        Some(limit_string(&value, limits.max_attribute_length));
                                 }
                             }
                             // NOTE: Don't call skip_element - itunes:image is typically self-closing
@@ -331,7 +350,7 @@ fn parse_channel(
                                 if attr.key.as_ref() == b"url"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    url = value.chars().take(limits.max_attribute_length).collect();
+                                    url = limit_string(&value, limits.max_attribute_length);
                                 }
                             }
                             let message_text = read_text(reader, &mut buf, limits)?;
@@ -499,9 +518,8 @@ fn parse_item(
                                 if attr.key.as_ref() == b"href"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    itunes.image = Some(
-                                        value.chars().take(limits.max_attribute_length).collect(),
-                                    );
+                                    itunes.image =
+                                        Some(limit_string(&value, limits.max_attribute_length));
                                 }
                             }
                             // NOTE: Don't call skip_element - itunes:image is typically self-closing
