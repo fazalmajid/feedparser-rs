@@ -1,0 +1,192 @@
+# Auto-labeler configuration for feedparser-rs
+# Automatically adds labels to PRs based on changed files
+# https://github.com/actions/labeler
+
+# Component labels - what part of the codebase is affected
+
+'component: core':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/feedparser-rs-core/**/*'
+      - '!crates/feedparser-rs-core/tests/**'
+      - '!crates/feedparser-rs-core/benches/**'
+
+'component: python':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/feedparser-rs-py/**/*'
+      - '!crates/feedparser-rs-py/tests/**'
+
+'component: node':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/feedparser-rs-node/**/*'
+      - '!crates/feedparser-rs-node/__test__/**'
+
+'component: tests':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/*/tests/**/*'
+      - 'crates/**/benches/**/*'
+      - 'tests/**/*'
+      - '**/*_test.rs'
+      - '**/*.test.{js,ts,py}'
+      - '**/test_*.py'
+
+'component: benchmarks':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/**/benches/**/*'
+      - 'benches/**/*'
+
+'component: ci':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**/*'
+      - '.github/actions/**/*'
+      - 'Makefile.toml'
+      - 'deny.toml'
+      - 'codecov.yml'
+      - '.codecov.yml'
+
+'component: dependencies':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/pnpm-lock.yaml'
+      - '**/pyproject.toml'
+      - '**/requirements*.txt'
+      - '**/poetry.lock'
+
+# Type labels - what kind of change is this
+
+'type: documentation':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
+      - '**/README*'
+      - '**/CHANGELOG*'
+      - '**/LICENSE*'
+      - '**/CONTRIBUTING*'
+      - '.github/ISSUE_TEMPLATE/**/*'
+      - '.github/PULL_REQUEST_TEMPLATE*'
+
+'type: build':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Cargo.toml'
+      - '**/build.rs'
+      - '**/package.json'
+      - '**/pyproject.toml'
+      - 'Makefile*'
+      - '**/Dockerfile'
+      - '**/.dockerignore'
+
+'type: tooling':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+      - '!.github/ISSUE_TEMPLATE/**/*'
+      - '!.github/PULL_REQUEST_TEMPLATE*'
+      - 'rustfmt.toml'
+      - '.rustfmt.toml'
+      - 'clippy.toml'
+      - '.clippy.toml'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.gitattributes'
+      - 'deny.toml'
+
+# Area labels - which part of the functionality
+
+'area: parser':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/feedparser-rs-core/src/parser/**/*'
+      - 'crates/feedparser-rs-core/src/**/parse*.rs'
+
+'area: rss':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*rss*.rs'
+      - 'tests/fixtures/rss/**/*'
+
+'area: atom':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*atom*.rs'
+      - 'tests/fixtures/atom/**/*'
+
+'area: json-feed':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*json*.rs'
+      - 'tests/fixtures/json/**/*'
+
+'area: error-handling':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/error*.rs'
+      - '**/*error.rs'
+
+'area: date-parsing':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/date*.rs'
+      - '**/*date*.rs'
+
+'area: sanitization':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/sanitize*.rs'
+      - '**/*sanitize*.rs'
+
+'area: encoding':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/encoding*.rs'
+      - '**/*encoding*.rs'
+
+'area: performance':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'crates/**/benches/**/*'
+      - '**/bench*.rs'
+      - '**/perf*.rs'
+
+'area: security':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'deny.toml'
+      - 'SECURITY.md'
+      - '**/sanitize*.rs'
+
+# Language-specific
+
+'lang: rust':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.rs'
+      - '**/Cargo.toml'
+      - 'rustfmt.toml'
+      - 'clippy.toml'
+
+'lang: python':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.py'
+      - '**/pyproject.toml'
+      - '**/requirements*.txt'
+      - '**/.python-version'
+
+'lang: javascript':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.{js,ts,mjs,cjs}'
+      - '**/package.json'
+      - '**/tsconfig.json'
+      - '**/.npmrc'

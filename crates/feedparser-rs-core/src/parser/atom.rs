@@ -736,4 +736,217 @@ mod tests {
         assert_eq!(feed.entries[0].content.len(), 1);
         assert!(feed.entries[0].content[0].value.contains("Content"));
     }
+
+    #[test]
+    fn test_parse_atom_with_categories() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Test</title>
+            <category term="technology" scheme="http://example.com/categories" label="Tech"/>
+            <category term="news"/>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(feed.feed.tags.len(), 2);
+        assert_eq!(feed.feed.tags[0].term, "technology");
+        assert_eq!(feed.feed.tags[0].label.as_deref(), Some("Tech"));
+    }
+
+    #[test]
+    fn test_parse_atom_with_generator() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Test</title>
+            <generator uri="http://example.com/" version="1.0">Example CMS</generator>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert!(feed.feed.generator_detail.is_some());
+        let generator_detail = feed.feed.generator_detail.as_ref().unwrap();
+        assert_eq!(generator_detail.uri.as_deref(), Some("http://example.com/"));
+        assert_eq!(generator_detail.version.as_deref(), Some("1.0"));
+    }
+
+    #[test]
+    fn test_parse_atom_with_icon_and_logo() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <icon>http://example.com/icon.png</icon>
+            <logo>http://example.com/logo.png</logo>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(
+            feed.feed.icon.as_deref(),
+            Some("http://example.com/icon.png")
+        );
+        assert_eq!(
+            feed.feed.logo.as_deref(),
+            Some("http://example.com/logo.png")
+        );
+    }
+
+    #[test]
+    fn test_parse_atom_with_rights() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <rights type="html">&lt;p&gt;Copyright 2024&lt;/p&gt;</rights>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert!(feed.feed.rights.is_some());
+        assert!(feed.feed.rights_detail.is_some());
+    }
+
+    #[test]
+    fn test_parse_atom_with_contributors() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <contributor>
+                <name>Jane Doe</name>
+                <email>jane@example.com</email>
+            </contributor>
+            <contributor>
+                <name>Bob Smith</name>
+            </contributor>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(feed.feed.contributors.len(), 2);
+        assert_eq!(feed.feed.contributors[0].name.as_deref(), Some("Jane Doe"));
+    }
+
+    #[test]
+    fn test_parse_atom_entry_with_summary() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+                <title>Entry</title>
+                <id>test</id>
+                <updated>2024-12-14T09:00:00Z</updated>
+                <summary type="text">This is a summary</summary>
+            </entry>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(
+            feed.entries[0].summary.as_deref(),
+            Some("This is a summary")
+        );
+        assert!(feed.entries[0].summary_detail.is_some());
+    }
+
+    #[test]
+    fn test_parse_atom_entry_with_published() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+                <title>Entry</title>
+                <id>test</id>
+                <updated>2024-12-14T09:00:00Z</updated>
+                <published>2024-12-13T09:00:00Z</published>
+            </entry>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert!(feed.entries[0].published.is_some());
+        assert!(feed.entries[0].updated.is_some());
+    }
+
+    #[test]
+    fn test_parse_atom_entry_with_source() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+                <title>Entry</title>
+                <id>test</id>
+                <updated>2024-12-14T09:00:00Z</updated>
+                <source>
+                    <title>Source Feed</title>
+                    <id>source-id</id>
+                    <link href="http://source.example.com"/>
+                </source>
+            </entry>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert!(feed.entries[0].source.is_some());
+        let source = feed.entries[0].source.as_ref().unwrap();
+        assert_eq!(source.title.as_deref(), Some("Source Feed"));
+        assert_eq!(source.id.as_deref(), Some("source-id"));
+    }
+
+    #[test]
+    fn test_parse_atom_multiple_links() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <link href="http://example.com/" rel="alternate"/>
+            <link href="http://example.com/feed" rel="self"/>
+            <link href="http://example.com/related" rel="related"/>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(feed.feed.links.len(), 3);
+        assert_eq!(feed.feed.link.as_deref(), Some("http://example.com/"));
+    }
+
+    #[test]
+    fn test_parse_atom_xhtml_content() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <title type="xhtml">
+                <div xmlns="http://www.w3.org/1999/xhtml">XHTML Title</div>
+            </title>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(
+            feed.feed.title_detail.as_ref().unwrap().content_type,
+            TextType::Xhtml
+        );
+    }
+
+    #[test]
+    fn test_parse_atom_with_limits_exceeded() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry><title>E1</title><id>1</id><updated>2024-01-01T00:00:00Z</updated></entry>
+            <entry><title>E2</title><id>2</id><updated>2024-01-01T00:00:00Z</updated></entry>
+            <entry><title>E3</title><id>3</id><updated>2024-01-01T00:00:00Z</updated></entry>
+        </feed>"#;
+
+        let limits = ParserLimits {
+            max_entries: 2,
+            ..Default::default()
+        };
+        let feed = parse_atom10_with_limits(xml, limits).unwrap();
+        assert_eq!(feed.entries.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_atom_malformed_continues() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Valid Title</title>
+            <invalid_tag>
+                <nested>broken
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert!(feed.bozo);
+        assert!(feed.feed.title.is_some());
+    }
+
+    #[test]
+    fn test_parse_atom_empty_elements() {
+        let xml = br#"<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <link href="http://example.com/"/>
+            <category term="test"/>
+        </feed>"#;
+
+        let feed = parse_atom10(xml).unwrap();
+        assert_eq!(feed.feed.links.len(), 1);
+        assert_eq!(feed.feed.tags.len(), 1);
+    }
 }
