@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/bug-ops/feedparser-rs/discussions
+    about: Ask questions or start a discussion about feedparser-rs
+  - name: Security Vulnerability
+    url: https://github.com/bug-ops/feedparser-rs/security/advisories/new
+    about: Report a security vulnerability (please do not use public issues)

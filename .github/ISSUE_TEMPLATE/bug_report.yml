@@ -1,0 +1,101 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug!
+        Please fill out the sections below to help us understand and reproduce the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: Describe what went wrong...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Parse this feed: `...`
+        2. Access this field: `...`
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what you expected...
+    validations:
+      required: true
+
+  - type: textarea
+    id: feed-sample
+    attributes:
+      label: Feed Sample
+      description: |
+        If applicable, provide a minimal feed sample that demonstrates the issue.
+        Please remove any sensitive information.
+      render: xml
+      placeholder: |
+        <?xml version="1.0"?>
+        <rss version="2.0">
+          <channel>
+            <title>Example</title>
+            <!-- minimal reproduction case -->
+          </channel>
+        </rss>
+    validations:
+      required: false
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform/binding are you using?
+      options:
+        - Rust (feedparser-rs-core)
+        - Node.js (feedparser-rs npm)
+        - Python (feedparser-rs-py)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version of feedparser-rs are you using?
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Please provide relevant environment information:
+      placeholder: |
+        - OS: macOS 14.0
+        - Rust: 1.88.0
+        - Node.js: 20.10.0 (if applicable)
+        - Python: 3.12 (if applicable)
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem (logs, screenshots, related issues)
+    validations:
+      required: false
