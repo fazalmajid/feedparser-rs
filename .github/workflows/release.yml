@@ -218,7 +218,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       id-token: write
-      contents: write
+      contents: read
     environment:
       name: npm
       url: https://www.npmjs.com/package/feedparser-rs
@@ -243,9 +243,9 @@ jobs:
         working-directory: crates/feedparser-rs-node
       - name: Publish with provenance
         working-directory: crates/feedparser-rs-node
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --ignore-scripts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ============================================================================
   # GITHUB RELEASE
