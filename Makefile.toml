@@ -342,6 +342,10 @@ echo "  - Python: (console output above)"
 description = "CI: Run all linting checks"
 run_task = { name = ["fmt-check", "clippy", "doc-check"] }
 
+[tasks.ci-lint-stable]
+description = "CI: Run stable toolchain lint checks (clippy + doc-check)"
+run_task = { name = ["clippy", "doc-check"] }
+
 [tasks.ci-security]
 description = "CI: Run all security checks"
 run_task = { name = ["deny"] }
