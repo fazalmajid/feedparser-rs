@@ -385,10 +385,23 @@ fn parse_image(
 }
 
 /// Check if element name matches a Dublin Core namespace tag
+///
+/// Validates that the tag name contains only alphanumeric characters and hyphens
+/// to prevent injection attacks through malicious XML namespace tags.
 #[inline]
 fn is_dc_tag(name: &[u8]) -> Option<&str> {
     if name.starts_with(b"dc:") {
-        std::str::from_utf8(&name[3..]).ok()
+        let tag_name = std::str::from_utf8(&name[3..]).ok()?;
+        // Validate: non-empty and alphanumeric + hyphen only
+        if !tag_name.is_empty()
+            && tag_name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-')
+        {
+            Some(tag_name)
+        } else {
+            None
+        }
     } else {
         None
     }
@@ -573,5 +586,38 @@ mod tests {
         let feed = parse_rss10(xml).unwrap();
         // Should still extract some data
         assert_eq!(feed.feed.title.as_deref(), Some("Test"));
+    }
+
+    #[test]
+    fn test_is_dc_tag_valid() {
+        assert_eq!(is_dc_tag(b"dc:creator"), Some("creator"));
+        assert_eq!(is_dc_tag(b"dc:date"), Some("date"));
+        assert_eq!(is_dc_tag(b"dc:description"), Some("description"));
+        assert_eq!(is_dc_tag(b"dc:subject"), Some("subject"));
+        assert_eq!(is_dc_tag(b"dc:content-type"), Some("content-type"));
+    }
+
+    #[test]
+    fn test_is_dc_tag_rejects_malicious() {
+        // Path traversal attempts
+        assert!(is_dc_tag(b"dc:../../etc/passwd").is_none());
+        assert!(is_dc_tag(b"dc:../../../root").is_none());
+
+        // Special characters
+        assert!(is_dc_tag(b"dc:invalid<tag>").is_none());
+        assert!(is_dc_tag(b"dc:tag&name").is_none());
+        assert!(is_dc_tag(b"dc:tag;name").is_none());
+        assert!(is_dc_tag(b"dc:tag/name").is_none());
+        assert!(is_dc_tag(b"dc:tag\\name").is_none());
+
+        // Empty tag name
+        assert!(is_dc_tag(b"dc:").is_none());
+    }
+
+    #[test]
+    fn test_is_dc_tag_non_dc() {
+        assert!(is_dc_tag(b"title").is_none());
+        assert!(is_dc_tag(b"link").is_none());
+        assert!(is_dc_tag(b"atom:title").is_none());
     }
 }

@@ -3,7 +3,109 @@
 //! This module provides URL resolution following RFC 3986, supporting
 //! the `xml:base` attribute used in Atom and some RSS feeds.
 
+use std::net::IpAddr;
 use url::Url;
+
+/// Validates that a URL is safe for external use (no SSRF risks)
+///
+/// This function checks for common SSRF attack vectors including:
+/// - Non-HTTP(S) schemes (file://, data://, etc.)
+/// - Localhost addresses (127.0.0.1, `::1`, localhost)
+/// - Private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+/// - Cloud metadata endpoints (169.254.169.254)
+///
+/// # Arguments
+///
+/// * `url` - The URL to validate
+///
+/// # Returns
+///
+/// `true` if the URL is safe to use, `false` if it poses SSRF risks
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::util::base_url::is_safe_url;
+///
+/// // Safe URLs
+/// assert!(is_safe_url("http://example.com/"));
+/// assert!(is_safe_url("https://github.com/"));
+///
+/// // Unsafe URLs
+/// assert!(!is_safe_url("file:///etc/passwd"));
+/// assert!(!is_safe_url("http://localhost/"));
+/// assert!(!is_safe_url("http://192.168.1.1/"));
+/// assert!(!is_safe_url("http://169.254.169.254/"));
+/// ```
+#[must_use]
+pub fn is_safe_url(url: &str) -> bool {
+    let Ok(parsed) = Url::parse(url) else {
+        return false;
+    };
+
+    // Only allow http and https schemes
+    match parsed.scheme() {
+        "http" | "https" => {}
+        _ => return false,
+    }
+
+    // Check the host using url::Host enum which properly handles IP addresses
+    if let Some(host) = parsed.host() {
+        match host {
+            url::Host::Domain(domain) => {
+                // Reject localhost domain
+                if domain == "localhost" {
+                    return false;
+                }
+
+                // Reject cloud metadata endpoints
+                if domain == "metadata.google.internal" {
+                    return false;
+                }
+            }
+            url::Host::Ipv4(ipv4) => {
+                let ip = IpAddr::V4(ipv4);
+                // Reject localhost and private IPs
+                if ip.is_loopback() || is_private_ip(&ip) {
+                    return false;
+                }
+
+                // Reject cloud metadata IP
+                let octets = ipv4.octets();
+                if octets == [169, 254, 169, 254] {
+                    return false;
+                }
+            }
+            url::Host::Ipv6(ipv6) => {
+                let ip = IpAddr::V6(ipv6);
+                // Reject localhost and private IPs
+                if ip.is_loopback() || is_private_ip(&ip) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+/// Checks if an IP address is in a private range
+fn is_private_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ipv4) => {
+            let octets = ipv4.octets();
+            octets[0] == 10
+                || (octets[0] == 172 && (16..=31).contains(&octets[1]))
+                || (octets[0] == 192 && octets[1] == 168)
+                || octets[0] == 127
+        }
+        IpAddr::V6(ipv6) => {
+            ipv6.is_loopback()
+                || ipv6.is_unspecified()
+                || (ipv6.segments()[0] & 0xfe00) == 0xfc00
+        }
+    }
+}
 
 /// Resolves a potentially relative URL against a base URL
 ///
@@ -47,7 +149,6 @@ pub fn resolve_url(href: &str, base: Option<&str>) -> String {
         || href.starts_with("https://")
         || href.starts_with("mailto:")
         || href.starts_with("tel:")
-        || href.starts_with("ftp://")
     {
         return href.to_string();
     }
@@ -345,5 +446,86 @@ mod tests {
             resolve_url("", Some("http://example.com/page.html")),
             "http://example.com/page.html"
         );
+    }
+
+    // SSRF Protection Tests
+    #[test]
+    fn test_is_safe_url_file_scheme() {
+        assert!(!is_safe_url("file:///etc/passwd"));
+        assert!(!is_safe_url("file:///C:/Windows/System32/config/sam"));
+    }
+
+    #[test]
+    fn test_is_safe_url_localhost() {
+        assert!(!is_safe_url("http://localhost/"));
+        assert!(!is_safe_url("http://127.0.0.1/"));
+        assert!(!is_safe_url("http://[::1]/"));
+        assert!(!is_safe_url("https://localhost:8080/api"));
+    }
+
+    #[test]
+    fn test_is_safe_url_private_ip() {
+        // 192.168.x.x range
+        assert!(!is_safe_url("http://192.168.1.1/"));
+        assert!(!is_safe_url("http://192.168.0.1/"));
+        assert!(!is_safe_url("http://192.168.255.255/"));
+
+        // 10.x.x.x range
+        assert!(!is_safe_url("http://10.0.0.1/"));
+        assert!(!is_safe_url("http://10.255.255.255/"));
+
+        // 172.16-31.x.x range
+        assert!(!is_safe_url("http://172.16.0.1/"));
+        assert!(!is_safe_url("http://172.31.255.255/"));
+        assert!(!is_safe_url("http://172.20.10.5/"));
+
+        // 127.x.x.x range
+        assert!(!is_safe_url("http://127.0.0.2/"));
+        assert!(!is_safe_url("http://127.255.255.255/"));
+    }
+
+    #[test]
+    fn test_is_safe_url_cloud_metadata() {
+        assert!(!is_safe_url("http://169.254.169.254/"));
+        assert!(!is_safe_url("http://169.254.169.254/latest/meta-data/"));
+        assert!(!is_safe_url("http://metadata.google.internal/"));
+    }
+
+    #[test]
+    fn test_is_safe_url_valid_urls() {
+        assert!(is_safe_url("http://example.com/"));
+        assert!(is_safe_url("https://github.com/"));
+        assert!(is_safe_url("http://1.1.1.1/"));
+        assert!(is_safe_url("https://8.8.8.8/"));
+        assert!(is_safe_url("http://example.com:8080/path"));
+    }
+
+    #[test]
+    fn test_is_safe_url_other_schemes() {
+        assert!(!is_safe_url("ftp://example.com/"));
+        assert!(!is_safe_url("data:text/html,<script>alert('xss')</script>"));
+        assert!(!is_safe_url("javascript:alert('xss')"));
+        assert!(!is_safe_url("gopher://example.com/"));
+    }
+
+    #[test]
+    fn test_is_safe_url_ipv6() {
+        // Loopback
+        assert!(!is_safe_url("http://[::1]/"));
+        assert!(!is_safe_url("http://[0:0:0:0:0:0:0:1]/"));
+
+        // Private ULA (fc00::/7)
+        assert!(!is_safe_url("http://[fc00::1]/"));
+        assert!(!is_safe_url("http://[fd00::1]/"));
+
+        // Public IPv6 should be allowed
+        assert!(is_safe_url("http://[2001:4860:4860::8888]/"));
+    }
+
+    #[test]
+    fn test_is_safe_url_invalid_urls() {
+        assert!(!is_safe_url("not a url"));
+        assert!(!is_safe_url(""));
+        assert!(!is_safe_url("://invalid"));
     }
 }

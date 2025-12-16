@@ -10,5 +10,5 @@ pub mod sanitize;
 pub mod text;
 
 // Re-export commonly used functions
-pub use base_url::{BaseUrlContext, combine_bases, resolve_url};
+pub use base_url::{is_safe_url, BaseUrlContext, combine_bases, resolve_url};
 pub use date::parse_date;
