@@ -14,9 +14,29 @@ High-performance RSS/Atom/JSON Feed parser written in Rust, with Python and Node
 
 - **Multi-format support** — RSS 0.9x, 1.0, 2.0 / Atom 0.3, 1.0 / JSON Feed 1.0, 1.1
 - **Tolerant parsing** — Handles malformed feeds gracefully with `bozo` flag pattern
-- **HTTP fetching** — Built-in URL fetching with compression support (gzip, deflate, brotli)
+- **HTTP fetching** — Built-in URL fetching with compression (gzip, deflate, brotli)
+- **Conditional GET** — ETag/Last-Modified support for bandwidth-efficient polling
+- **Podcast support** — iTunes and Podcast 2.0 namespace extensions
 - **Multi-language bindings** — Native Python (PyO3) and Node.js (napi-rs) bindings
 - **Familiar API** — Inspired by Python's feedparser, easy to migrate existing code
+
+## Supported Formats
+
+| Format | Versions | Status |
+|--------|----------|--------|
+| RSS | 0.90, 0.91, 0.92, 1.0, 2.0 | ✅ Full support |
+| Atom | 0.3, 1.0 | ✅ Full support |
+| JSON Feed | 1.0, 1.1 | ✅ Full support |
+
+### Namespace Extensions
+
+| Namespace | Description |
+|-----------|-------------|
+| Dublin Core | Creator, date, rights metadata |
+| Content | Encoded HTML content |
+| Media RSS | Media attachments and metadata |
+| iTunes | Podcast metadata (author, duration, explicit) |
+| Podcast 2.0 | Chapters, transcripts, funding |
 
 ## Installation
 
@@ -54,7 +74,7 @@ pip install feedparser-rs
 
 ## Usage
 
-### Rust Usage
+### Rust
 
 ```rust
 use feedparser_rs::parse;
@@ -103,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 > [!TIP]
 > Use `fetch_and_parse` for URL fetching with automatic compression handling (gzip, deflate, brotli).
 
-### Node.js Usage
+### Node.js
 
 ```javascript
 import { parse, fetchAndParse } from 'feedparser-rs';
@@ -120,7 +140,7 @@ const remoteFeed = await fetchAndParse('https://example.com/feed.xml');
 
 See [Node.js API documentation](crates/feedparser-rs-node/README.md) for complete reference.
 
-### Python Usage
+### Python
 
 ```python
 import feedparser_rs
@@ -134,7 +154,7 @@ print(d.entries[0].published_parsed)  # time.struct_time
 ```
 
 > [!NOTE]
-> Python bindings provide `time.struct_time` for date fields, similar to feedparser's API.
+> Python bindings provide `time.struct_time` for date fields, matching feedparser's API for easy migration.
 
 ## Cargo Features
 
@@ -142,7 +162,7 @@ print(d.entries[0].published_parsed)  # time.struct_time
 |---------|-------------|---------|
 | `http` | Enable URL fetching with reqwest (gzip/deflate/brotli support) | Yes |
 
-To disable HTTP support:
+To disable HTTP support and reduce dependencies:
 
 ```toml
 [dependencies]
@@ -150,8 +170,6 @@ feedparser-rs = { version = "0.1", default-features = false }
 ```
 
 ## Workspace Structure
-
-This repository contains multiple crates:
 
 | Crate | Description | Package |
 |-------|-------------|---------|
@@ -161,8 +179,6 @@ This repository contains multiple crates:
 
 ## Development
 
-This project uses [cargo-make](https://github.com/sagiegurari/cargo-make) for task automation.
-
 ```bash
 # Install cargo-make
 cargo install cargo-make
@@ -170,8 +186,8 @@ cargo install cargo-make
 # Run all checks (format, lint, test)
 cargo make ci-all
 
-# Run tests
-cargo make test
+# Run tests with coverage
+cargo make coverage
 
 # Run benchmarks
 cargo make bench
