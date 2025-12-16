@@ -185,20 +185,20 @@ dependencies = ["test-node-install", "test-node-build", "test-node-run"]
 [tasks.test-node-install]
 description = "Install Node.js dependencies"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["ci"]
+script_runner = "@shell"
+script = "npm ci"
 
 [tasks.test-node-build]
 description = "Build Node.js bindings"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["run", "build"]
+script_runner = "@shell"
+script = "npm run build"
 
 [tasks.test-node-run]
 description = "Run Node.js tests"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["test"]
+script_runner = "@shell"
+script = "npm test"
 
 # ============================================================================
 # Coverage Tasks
@@ -262,20 +262,20 @@ dependencies = ["coverage-node-install", "coverage-node-build", "coverage-node-r
 [tasks.coverage-node-install]
 description = "Install Node.js dependencies for coverage"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["ci"]
+script_runner = "@shell"
+script = "npm ci"
 
 [tasks.coverage-node-build]
 description = "Build Node.js bindings for coverage"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["run", "build"]
+script_runner = "@shell"
+script = "npm run build"
 
 [tasks.coverage-node-run]
 description = "Run Node.js tests with coverage"
 cwd = "./crates/feedparser-rs-node"
-command = "npm"
-args = ["run", "test:coverage"]
+script_runner = "@shell"
+script = "npm run test:coverage"
 
 # ============================================================================
 # MSRV Check
