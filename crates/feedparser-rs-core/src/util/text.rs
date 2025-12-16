@@ -27,3 +27,27 @@ pub fn bytes_to_string(value: &[u8]) -> String {
         std::string::ToString::to_string,
     )
 }
+
+/// Truncates string to maximum length by character count
+///
+/// Uses efficient byte-length check before expensive char iteration.
+/// Prevents oversized attribute/text values that could cause memory issues.
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::util::text::truncate_to_length;
+///
+/// assert_eq!(truncate_to_length("hello world", 5), "hello");
+/// assert_eq!(truncate_to_length("hi", 100), "hi");
+/// assert_eq!(truncate_to_length("", 10), "");
+/// ```
+#[inline]
+#[must_use]
+pub fn truncate_to_length(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        s.chars().take(max_len).collect()
+    }
+}

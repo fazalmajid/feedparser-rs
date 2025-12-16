@@ -145,9 +145,7 @@ pub fn init_feed(version: FeedVersion, max_entries: usize) -> ParsedFeed {
 /// Check nesting depth and return error if exceeded
 ///
 /// This is a standalone helper for parsers that don't use `ParseContext`.
-/// Future use: Will be used when `ParseContext` is adopted project-wide
 #[inline]
-#[allow(dead_code)]
 pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
     if depth > max_depth {
         return Err(FeedError::InvalidFormat(format!(
@@ -155,6 +153,95 @@ pub fn check_depth(depth: usize, max_depth: usize) -> Result<()> {
         )));
     }
     Ok(())
+}
+
+/// Extract local name from namespaced element if prefix matches
+///
+/// Validates tag name contains only alphanumeric characters and hyphens
+/// to prevent injection attacks.
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(extract_ns_local_name(b"dc:creator", b"dc:"), Some("creator"));
+/// assert_eq!(extract_ns_local_name(b"dc:creator", b"atom:"), None);
+/// assert_eq!(extract_ns_local_name(b"dc:<script>", b"dc:"), None); // Invalid chars
+/// ```
+#[inline]
+pub fn extract_ns_local_name<'a>(name: &'a [u8], prefix: &[u8]) -> Option<&'a str> {
+    if name.starts_with(prefix) {
+        let tag_name = std::str::from_utf8(&name[prefix.len()..]).ok()?;
+        // Security: validate tag name (alphanumeric + hyphen only)
+        if !tag_name.is_empty() && tag_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
+            Some(tag_name)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/// Check if element is a Dublin Core namespaced tag
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(is_dc_tag(b"dc:creator"), Some("creator"));
+/// assert_eq!(is_dc_tag(b"dc:subject"), Some("subject"));
+/// assert_eq!(is_dc_tag(b"content:encoded"), None);
+/// ```
+#[inline]
+pub fn is_dc_tag(name: &[u8]) -> Option<&str> {
+    extract_ns_local_name(name, b"dc:")
+}
+
+/// Check if element is a Content namespaced tag
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(is_content_tag(b"content:encoded"), Some("encoded"));
+/// assert_eq!(is_content_tag(b"dc:creator"), None);
+/// ```
+#[inline]
+pub fn is_content_tag(name: &[u8]) -> Option<&str> {
+    extract_ns_local_name(name, b"content:")
+}
+
+/// Check if element is a Media RSS namespaced tag
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(is_media_tag(b"media:thumbnail"), Some("thumbnail"));
+/// assert_eq!(is_media_tag(b"media:content"), Some("content"));
+/// assert_eq!(is_media_tag(b"dc:creator"), None);
+/// ```
+#[inline]
+pub fn is_media_tag(name: &[u8]) -> Option<&str> {
+    extract_ns_local_name(name, b"media:")
+}
+
+/// Check if element matches an iTunes namespace tag
+///
+/// Supports both prefixed (itunes:author) and unprefixed (author) forms
+/// for compatibility with non-compliant feeds.
+///
+/// # Examples
+///
+/// ```ignore
+/// assert!(is_itunes_tag(b"itunes:author", b"author"));
+/// assert!(is_itunes_tag(b"author", b"author")); // Fallback for non-prefixed
+/// assert!(!is_itunes_tag(b"itunes:title", b"author"));
+/// ```
+#[inline]
+pub fn is_itunes_tag(name: &[u8], tag: &[u8]) -> bool {
+    if name.starts_with(b"itunes:") && &name[7..] == tag {
+        return true;
+    }
+    // Fallback for feeds without prefix
+    name == tag
 }
 
 /// Read text content from current XML element (handles text and CDATA)

@@ -11,12 +11,13 @@ use crate::{
     ParserLimits,
     error::{FeedError, Result},
     namespace::dublin_core,
-    types::{Entry, FeedVersion, Image, Link, ParsedFeed, TextConstruct, TextType},
+    types::{Entry, FeedVersion, Image, ParsedFeed, TextConstruct, TextType},
 };
 use quick_xml::{Reader, events::Event};
 
 use super::common::{
-    EVENT_BUFFER_CAPACITY, LimitedCollectionExt, init_feed, read_text, skip_element,
+    EVENT_BUFFER_CAPACITY, LimitedCollectionExt, check_depth, init_feed, is_dc_tag, read_text,
+    skip_element,
 };
 
 /// Parse RSS 1.0 (RDF) feed from raw bytes
@@ -186,12 +187,7 @@ fn parse_channel(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let name = e.local_name();
                 let full_name = e.name();
@@ -202,15 +198,8 @@ fn parse_channel(
                     }
                     b"link" => {
                         let link_text = read_text(reader, &mut buf, limits)?;
-                        feed.feed.link = Some(link_text.clone());
-                        feed.feed.links.try_push_limited(
-                            Link {
-                                href: link_text,
-                                rel: Some("alternate".to_string()),
-                                ..Default::default()
-                            },
-                            limits.max_links_per_feed,
-                        );
+                        feed.feed
+                            .set_alternate_link(link_text, limits.max_links_per_feed);
                     }
                     b"description" => {
                         feed.feed.subtitle = Some(read_text(reader, &mut buf, limits)?);
@@ -269,12 +258,7 @@ fn parse_item(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let name = e.local_name();
                 let full_name = e.name();
@@ -285,15 +269,7 @@ fn parse_item(
                     }
                     b"link" => {
                         let link_text = read_text(reader, buf, limits)?;
-                        entry.link = Some(link_text.clone());
-                        entry.links.try_push_limited(
-                            Link {
-                                href: link_text,
-                                rel: Some("alternate".to_string()),
-                                ..Default::default()
-                            },
-                            limits.max_links_per_entry,
-                        );
+                        entry.set_alternate_link(link_text, limits.max_links_per_entry);
                     }
                     b"description" => {
                         let desc = read_text(reader, buf, limits)?;
@@ -347,12 +323,7 @@ fn parse_image(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 match e.local_name().as_ref() {
                     b"url" => url = read_text(reader, buf, limits)?,
@@ -382,25 +353,6 @@ fn parse_image(
         height: None,
         description: None,
     })
-}
-
-/// Check if element name matches a Dublin Core namespace tag
-///
-/// Validates that the tag name contains only alphanumeric characters and hyphens
-/// to prevent injection attacks through malicious XML namespace tags.
-#[inline]
-fn is_dc_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"dc:") {
-        let tag_name = std::str::from_utf8(&name[3..]).ok()?;
-        // Validate: non-empty and alphanumeric + hyphen only
-        if !tag_name.is_empty() && tag_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
-            Some(tag_name)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]
