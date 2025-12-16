@@ -47,22 +47,6 @@ args = [
     "-D", "warnings"
 ]
 
-[tasks.clippy-sarif]
-description = "Generate SARIF output from clippy for GitHub integration"
-dependencies = ["install-clippy-sarif"]
-script = '''
-#!/bin/bash
-set -e
-cargo clippy --all-targets --all-features --workspace \
-    --exclude feedparser-rs-py --message-format=json -- -D warnings | \
-clippy-sarif | tee clippy-results.sarif | sarif-fmt
-'''
-
-[tasks.install-clippy-sarif]
-description = "Install clippy-sarif and sarif-fmt tools"
-install_crate = { crate_name = "clippy-sarif", binary = "clippy-sarif", test_arg = "--version" }
-install_crate_args = ["clippy-sarif", "sarif-fmt"]
-
 [tasks.doc]
 description = "Generate documentation"
 command = "cargo"
@@ -339,8 +323,8 @@ echo "  - Python: (console output above)"
 # ============================================================================
 
 [tasks.ci-lint]
-description = "CI: Run all linting checks with SARIF generation"
-run_task = { name = ["fmt-check", "clippy", "clippy-sarif", "doc-check"] }
+description = "CI: Run all linting checks"
+run_task = { name = ["fmt-check", "clippy", "doc-check"] }
 
 [tasks.ci-security]
 description = "CI: Run all security checks"
