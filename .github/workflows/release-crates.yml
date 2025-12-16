@@ -34,13 +34,13 @@ jobs:
           shared-key: "release-verify"
 
       - name: Build release
-        run: cargo build --release --all-features -p feedparser-rs-core
+        run: cargo build --release --all-features -p feedparser-rs
 
       - name: Run tests
-        run: cargo test --release -p feedparser-rs-core
+        run: cargo test --release -p feedparser-rs
 
       - name: Check package
-        run: cargo package -p feedparser-rs-core
+        run: cargo package -p feedparser-rs
 
   # Publish to crates.io
   publish:
@@ -59,8 +59,8 @@ jobs:
         with:
           shared-key: "release-publish"
 
-      - name: Publish feedparser-rs-core
-        run: cargo publish -p feedparser-rs-core
+      - name: Publish feedparser-rs
+        run: cargo publish -p feedparser-rs
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "Waiting for crates.io to propagate the package..."
           for i in {1..30}; do
-            if cargo search feedparser-rs-core | grep -q "feedparser-rs-core"; then
+            if cargo search feedparser-rs | grep -q "feedparser-rs"; then
               echo "Package is available on crates.io!"
               exit 0
             fi
@@ -98,8 +98,8 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            crates.io package: https://crates.io/crates/feedparser-rs-core
+            crates.io package: https://crates.io/crates/feedparser-rs
 
-            Install with: `cargo add feedparser-rs-core`
+            Install with: `cargo add feedparser-rs`
 
             See [CHANGELOG.md](CHANGELOG.md) for details.
