@@ -10,6 +10,8 @@ This is the core parsing library that powers the Python and Node.js bindings.
 - **Tolerant**: Bozo flag for malformed feeds (like Python feedparser)
 - **Fast**: Written in Rust, 10-100x faster than Python feedparser
 - **Safe**: No unsafe code, comprehensive error handling
+- **HTTP support**: Fetch feeds from URLs with compression and conditional GET
+- **Podcast support**: iTunes and Podcast 2.0 namespace extensions
 - **Well-tested**: Extensive test coverage with real-world feed fixtures
 
 ## Installation
@@ -41,6 +43,38 @@ let feed = parse(xml.as_bytes())?;
 assert_eq!(feed.feed.title.as_deref(), Some("My Blog"));
 assert_eq!(feed.entries.len(), 1);
 # Ok::<(), feedparser_rs_core::FeedError>(())
+```
+
+## HTTP Fetching
+
+Fetch feeds directly from URLs with automatic compression handling:
+
+```rust
+use feedparser_rs_core::parse_url;
+
+let feed = parse_url("https://example.com/feed.xml", None, None, None)?;
+println!("Title: {:?}", feed.feed.title);
+println!("Entries: {}", feed.entries.len());
+
+// Subsequent fetch with caching (uses ETag/Last-Modified)
+let feed2 = parse_url(
+    "https://example.com/feed.xml",
+    feed.etag.as_deref(),
+    feed.modified.as_deref(),
+    None
+)?;
+
+if feed2.status == Some(304) {
+    println!("Not modified, use cached version");
+}
+# Ok::<(), feedparser_rs_core::FeedError>(())
+```
+
+To disable HTTP support and reduce dependencies:
+
+```toml
+[dependencies]
+feedparser-rs-core = { version = "0.1", default-features = false }
 ```
 
 ## Platform Bindings
