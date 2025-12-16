@@ -504,7 +504,8 @@ fn parse_item(
                         }
                     }
                     _ => {
-                        let mut handled = parse_item_itunes(reader, buf, &tag, &attrs, &mut entry, limits)?;
+                        let mut handled =
+                            parse_item_itunes(reader, buf, &tag, &attrs, &mut entry, limits)?;
                         if !handled {
                             handled = parse_item_podcast(
                                 reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
