@@ -2,9 +2,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/feedparser-rs)](https://crates.io/crates/feedparser-rs)
 [![docs.rs](https://img.shields.io/docsrs/feedparser-rs)](https://docs.rs/feedparser-rs)
+[![PyPI](https://img.shields.io/pypi/v/feedparser-rs)](https://pypi.org/project/feedparser-rs/)
+[![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
 [![CI](https://img.shields.io/github/actions/workflow/status/bug-ops/feedparser-rs/ci.yml?branch=main)](https://github.com/bug-ops/feedparser-rs/actions)
 [![codecov](https://codecov.io/gh/bug-ops/feedparser-rs/graph/badge.svg)](https://codecov.io/gh/bug-ops/feedparser-rs)
-[![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
 [![License](https://img.shields.io/crates/l/feedparser-rs)](LICENSE-MIT)
 
 High-performance RSS/Atom/JSON Feed parser written in Rust, with Python and Node.js bindings.
