@@ -19,9 +19,16 @@ use super::common::{
     is_itunes_tag, is_media_tag, read_text, skip_element,
 };
 
+/// Error message for malformed XML attributes (shared constant)
+const MALFORMED_ATTRIBUTES_ERROR: &str = "Malformed XML attributes";
+
 /// Extract attributes as owned key-value pairs
 /// Returns (attributes, `has_errors`) tuple where `has_errors` indicates
 /// if any attribute parsing errors occurred (for bozo flag)
+///
+/// Note: Keys are cloned to `Vec<u8>` because `quick_xml::Attribute` owns the key
+/// data only for the lifetime of the event, but we need to store attributes across
+/// multiple parsing calls in `parse_enclosure` and other functions.
 #[inline]
 fn collect_attributes(e: &quick_xml::events::BytesStart) -> (Vec<(Vec<u8>, String)>, bool) {
     let mut has_errors = false;
@@ -138,11 +145,14 @@ fn parse_channel(
                 *depth += 1;
                 check_depth(*depth, limits.max_nesting_depth)?;
 
+                // NOTE: Allocation here is necessary due to borrow checker constraints.
+                // We need owned tag data to pass &mut buf to helper functions simultaneously.
+                // Potential future optimization: restructure helpers to avoid this allocation.
                 let tag = e.name().as_ref().to_vec();
                 let (attrs, has_attr_errors) = collect_attributes(&e);
                 if has_attr_errors {
                     feed.bozo = true;
-                    feed.bozo_exception = Some("Malformed XML attributes".to_string());
+                    feed.bozo_exception = Some(MALFORMED_ATTRIBUTES_ERROR.to_string());
                 }
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
@@ -166,7 +176,7 @@ fn parse_channel(
                                 if has_attr_errors {
                                     feed.bozo = true;
                                     feed.bozo_exception =
-                                        Some("Malformed XML attributes".to_string());
+                                        Some(MALFORMED_ATTRIBUTES_ERROR.to_string());
                                 }
                                 feed.entries.push(entry);
                             }
@@ -504,6 +514,9 @@ fn parse_item(
                 *depth += 1;
                 check_depth(*depth, limits.max_nesting_depth)?;
 
+                // NOTE: Allocation here is necessary due to borrow checker constraints.
+                // We need owned tag data to pass &mut buf to helper functions simultaneously.
+                // Potential future optimization: restructure helpers to avoid this allocation.
                 let tag = e.name().as_ref().to_vec();
                 let (attrs, attr_error) = collect_attributes(e);
                 if attr_error {
