@@ -1,6 +1,8 @@
-# Parser Module Instructions
+---
+applyTo: "crates/feedparser-rs-core/src/parser/**"
+---
 
-**Applies to:** `crates/feedparser-rs-core/src/parser/**`
+# Parser Module Instructions
 
 ## Core Principles
 

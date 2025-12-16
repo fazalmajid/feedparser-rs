@@ -1,6 +1,8 @@
-# Python Bindings Instructions
+---
+applyTo: "crates/feedparser-rs-py/**"
+---
 
-**Applies to:** `crates/feedparser-rs-py/**`
+# Python Bindings Instructions
 
 ## Mission-Critical: API Compatibility
 
