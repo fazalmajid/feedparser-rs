@@ -313,6 +313,8 @@ fn parse_channel_standard(
 }
 
 /// Parse iTunes namespace tags at channel level
+///
+/// Returns `Ok(true)` if the tag was recognized and handled, `Ok(false)` if not recognized.
 fn parse_channel_itunes(
     reader: &mut Reader<&[u8]>,
     buf: &mut Vec<u8>,
@@ -434,6 +436,8 @@ fn parse_itunes_category(
 }
 
 /// Parse Podcast 2.0 namespace tags at channel level
+///
+/// Returns `Ok(true)` if the tag was recognized and handled, `Ok(false)` if not recognized.
 #[inline]
 fn parse_channel_podcast(
     reader: &mut Reader<&[u8]>,
@@ -493,7 +497,10 @@ fn parse_channel_namespace(
 }
 
 /// Parse <item> element (entry)
-/// Returns Result with Entry and boolean indicating if there were attribute parsing errors
+///
+/// Returns a tuple where:
+/// - First element: the parsed `Entry`
+/// - Second element: `bool` indicating whether attribute parsing errors occurred (for bozo flag)
 fn parse_item(
     reader: &mut Reader<&[u8]>,
     buf: &mut Vec<u8>,
@@ -641,6 +648,8 @@ fn parse_item_standard(
 }
 
 /// Parse iTunes namespace tags at item level
+///
+/// Returns `Ok(true)` if the tag was recognized and handled, `Ok(false)` if not recognized.
 #[inline]
 fn parse_item_itunes(
     reader: &mut Reader<&[u8]>,
@@ -697,6 +706,11 @@ fn parse_item_itunes(
 }
 
 /// Parse Podcast 2.0 namespace tags at item level
+///
+/// Returns `Ok(true)` if the tag was recognized and handled, `Ok(false)` if not recognized.
+///
+/// Note: Uses 8 parameters instead of a context struct due to borrow checker constraints
+/// with multiple simultaneous `&mut` references during parsing.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn parse_item_podcast(
@@ -721,6 +735,9 @@ fn parse_item_podcast(
 }
 
 /// Parse Podcast 2.0 transcript element
+///
+/// Note: Currently always returns `Ok(())` but uses `Result` return type
+/// for consistency with other parsers and potential future error handling.
 fn parse_podcast_transcript(
     reader: &mut Reader<&[u8]>,
     buf: &mut Vec<u8>,
@@ -788,6 +805,11 @@ fn parse_podcast_person(
 }
 
 /// Parse Dublin Core, Content, and Media RSS namespace tags at item level
+///
+/// Returns `Ok(true)` if the tag was recognized and handled, `Ok(false)` if not recognized.
+///
+/// Note: Uses 8 parameters instead of a context struct due to borrow checker constraints
+/// with multiple simultaneous `&mut` references during parsing.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn parse_item_namespace(
