@@ -7,6 +7,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
 
 env:
@@ -23,14 +24,78 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast checks - run first, fail fast
-  lint:
-    name: Lint (fmt + clippy)
+  # Detect which files changed to optimize CI
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust-core: ${{ steps.filter.outputs.rust-core }}
+      python: ${{ steps.filter.outputs.python }}
+      node: ${{ steps.filter.outputs.node }}
+      ci: ${{ steps.filter.outputs.ci }}
+      docs: ${{ steps.filter.outputs.docs }}
+      full-ci: ${{ steps.check-full-ci.outputs.full-ci }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for full-ci label or main branch push
+        id: check-full-ci
+        run: |
+          FULL_CI="false"
+
+          # Always run full CI on main branch pushes
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            FULL_CI="true"
+            echo "Full CI enabled: main branch push"
+          fi
+
+          # Check for full-ci label on PRs
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}" == "true" ]]; then
+              FULL_CI="true"
+              echo "Full CI enabled: full-ci label present"
+            fi
+          fi
+
+          echo "full-ci=$FULL_CI" >> $GITHUB_OUTPUT
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust-core:
+              - 'crates/feedparser-rs-core/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            python:
+              - 'crates/feedparser-rs-py/**'
+              - 'crates/feedparser-rs-core/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            node:
+              - 'crates/feedparser-rs-node/**'
+              - 'crates/feedparser-rs-core/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            ci:
+              - '.github/workflows/**'
+              - 'deny.toml'
+              - 'rustfmt.toml'
+              - 'Makefile.toml'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+
+  # Fast checks - run in parallel, fail fast
+  lint-stable:
+    name: Lint (clippy + docs)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -39,28 +104,46 @@ jobs:
         with:
           components: clippy
 
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
-
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "lint"
+          shared-key: "lint-stable"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-make
         uses: taiki-e/install-action@cargo-make
 
-      - name: Run lint checks
-        run: cargo make ci-lint
+      - name: Run clippy and doc checks
+        run: cargo make ci-lint-stable
+
+  lint-nightly:
+    name: Lint (rustfmt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo +nightly fmt --all -- --check
 
   # Security audit
   security:
     name: Security Audit
+    needs: [changes]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Run on: Rust core changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.rust-core == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     steps:
@@ -83,9 +166,14 @@ jobs:
   # Cross-platform Rust tests
   test-rust:
     name: Test Rust (${{ matrix.os }})
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # Run on: Rust core changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.rust-core == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     strategy:
@@ -96,8 +184,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Disable Windows Defender real-time monitoring
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -105,8 +200,10 @@ jobs:
           shared-key: "test-rust-${{ matrix.os }}"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Install cargo-make
-        uses: taiki-e/install-action@cargo-make
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-make,cargo-nextest
 
       - name: Run Rust tests
         run: cargo make ci-test-rust
@@ -114,9 +211,14 @@ jobs:
   # Python bindings tests
   test-python:
     name: Test Python (${{ matrix.os }} - Py${{ matrix.python }})
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    # Run on: Python changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.python == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     strategy:
@@ -142,8 +244,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Disable Windows Defender real-time monitoring
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -169,9 +278,14 @@ jobs:
   # Node.js bindings tests
   test-node:
     name: Test Node.js (${{ matrix.os }} - Node ${{ matrix.node }})
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    # Run on: Node changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.node == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     strategy:
@@ -187,8 +301,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Disable Windows Defender real-time monitoring
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -218,9 +339,14 @@ jobs:
   # Rust code coverage
   coverage-rust:
     name: Rust Code Coverage
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Run on: Rust core changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.rust-core == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     steps:
@@ -257,9 +383,14 @@ jobs:
   # Python code coverage
   coverage-python:
     name: Python Code Coverage
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Run on: Python changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.python == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     steps:
@@ -301,9 +432,14 @@ jobs:
   # Node.js code coverage
   coverage-node:
     name: Node.js Code Coverage
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Run on: Node changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.node == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     steps:
@@ -348,9 +484,14 @@ jobs:
   # MSRV check
   msrv:
     name: Check MSRV (1.88.0)
-    needs: [lint]
+    needs: [changes, lint-stable, lint-nightly]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Run on: Rust core changes, CI config changes, or full CI mode
+    if: |
+      needs.changes.outputs.rust-core == 'true' ||
+      needs.changes.outputs.ci == 'true' ||
+      needs.changes.outputs.full-ci == 'true'
     permissions:
       contents: read
     steps:
@@ -375,7 +516,7 @@ jobs:
   # All checks passed gate
   ci-success:
     name: CI Success
-    needs: [lint, security, test-rust, test-python, test-node, coverage-rust, coverage-python, coverage-node, msrv]
+    needs: [changes, lint-stable, lint-nightly, security, test-rust, test-python, test-node, coverage-rust, coverage-python, coverage-node, msrv]
     runs-on: ubuntu-latest
     if: always()
     permissions:
@@ -383,16 +524,53 @@ jobs:
     steps:
       - name: Check all jobs
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || \
-             [[ "${{ needs.security.result }}" != "success" ]] || \
-             [[ "${{ needs.test-rust.result }}" != "success" ]] || \
-             [[ "${{ needs.test-python.result }}" != "success" ]] || \
-             [[ "${{ needs.test-node.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-rust.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-python.result }}" != "success" ]] || \
-             [[ "${{ needs.coverage-node.result }}" != "success" ]] || \
-             [[ "${{ needs.msrv.result }}" != "success" ]]; then
-            echo "One or more jobs failed"
+          # Helper function to check job result (success or skipped is OK)
+          check_job() {
+            local job_name=$1
+            local job_result=$2
+
+            if [[ "$job_result" == "success" ]] || [[ "$job_result" == "skipped" ]]; then
+              echo "$job_name: $job_result ✓"
+              return 0
+            else
+              echo "$job_name: $job_result ✗"
+              return 1
+            fi
+          }
+
+          # Track overall status
+          FAILED=0
+
+          # Lint jobs must always succeed (never skipped)
+          if [[ "${{ needs.lint-stable.result }}" != "success" ]]; then
+            echo "lint-stable: ${{ needs.lint-stable.result }} ✗ (must succeed)"
+            FAILED=1
+          else
+            echo "lint-stable: ${{ needs.lint-stable.result }} ✓"
+          fi
+
+          if [[ "${{ needs.lint-nightly.result }}" != "success" ]]; then
+            echo "lint-nightly: ${{ needs.lint-nightly.result }} ✗ (must succeed)"
+            FAILED=1
+          else
+            echo "lint-nightly: ${{ needs.lint-nightly.result }} ✓"
+          fi
+
+          # Check all other jobs (success or skipped is OK)
+          check_job "security" "${{ needs.security.result }}" || FAILED=1
+          check_job "test-rust" "${{ needs.test-rust.result }}" || FAILED=1
+          check_job "test-python" "${{ needs.test-python.result }}" || FAILED=1
+          check_job "test-node" "${{ needs.test-node.result }}" || FAILED=1
+          check_job "coverage-rust" "${{ needs.coverage-rust.result }}" || FAILED=1
+          check_job "coverage-python" "${{ needs.coverage-python.result }}" || FAILED=1
+          check_job "coverage-node" "${{ needs.coverage-node.result }}" || FAILED=1
+          check_job "msrv" "${{ needs.msrv.result }}" || FAILED=1
+
+          if [[ $FAILED -eq 1 ]]; then
+            echo ""
+            echo "❌ One or more jobs failed"
             exit 1
           fi
-          echo "All CI jobs passed successfully!"
+
+          echo ""
+          echo "✅ All CI jobs passed successfully!"
