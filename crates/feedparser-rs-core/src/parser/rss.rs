@@ -10,33 +10,14 @@ use crate::{
         PodcastPerson, PodcastTranscript, Source, Tag, TextConstruct, TextType, parse_duration,
         parse_explicit,
     },
-    util::parse_date,
+    util::{parse_date, text::truncate_to_length},
 };
 use quick_xml::{Reader, events::Event};
 
 use super::common::{
-    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, init_feed, read_text, skip_element,
+    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, check_depth, init_feed,
+    is_content_tag, is_dc_tag, is_itunes_tag, is_media_tag, read_text, skip_element,
 };
-
-/// Limits string to maximum length by character count
-///
-/// Uses efficient byte-length check before expensive char iteration.
-/// Prevents oversized attribute/text values that could cause memory issues.
-///
-/// # Examples
-///
-/// ```ignore
-/// let limited = limit_string("hello world", 5); // "hello"
-/// let short = limit_string("hi", 100);          // "hi"
-/// ```
-#[inline]
-fn limit_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        s.chars().take(max_len).collect()
-    }
-}
 
 /// Parse RSS 2.0 feed from raw bytes
 ///
@@ -121,12 +102,7 @@ fn parse_channel(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 // (e.g., <image> vs <itunes:image>, <category> vs <itunes:category>)
@@ -136,15 +112,8 @@ fn parse_channel(
                     }
                     b"link" => {
                         let link_text = read_text(reader, &mut buf, limits)?;
-                        feed.feed.link = Some(link_text.clone());
-                        feed.feed.links.try_push_limited(
-                            Link {
-                                href: link_text,
-                                rel: Some("alternate".to_string()),
-                                ..Default::default()
-                            },
-                            limits.max_links_per_feed,
-                        );
+                        feed.feed
+                            .set_alternate_link(link_text, limits.max_links_per_feed);
                     }
                     b"description" => {
                         feed.feed.subtitle = Some(read_text(reader, &mut buf, limits)?);
@@ -228,7 +197,7 @@ fn parse_channel(
                                     && let Ok(value) = attr.unescape_value()
                                 {
                                     category_text =
-                                        limit_string(&value, limits.max_attribute_length);
+                                        truncate_to_length(&value, limits.max_attribute_length);
                                 }
                             }
 
@@ -314,8 +283,10 @@ fn parse_channel(
                                 if attr.key.as_ref() == b"href"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    itunes.image =
-                                        Some(limit_string(&value, limits.max_attribute_length));
+                                    itunes.image = Some(truncate_to_length(
+                                        &value,
+                                        limits.max_attribute_length,
+                                    ));
                                 }
                             }
                             // NOTE: Don't call skip_element - itunes:image is typically self-closing
@@ -350,7 +321,7 @@ fn parse_channel(
                                 if attr.key.as_ref() == b"url"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    url = limit_string(&value, limits.max_attribute_length);
+                                    url = truncate_to_length(&value, limits.max_attribute_length);
                                 }
                             }
                             let message_text = read_text(reader, &mut buf, limits)?;
@@ -419,12 +390,7 @@ fn parse_item(
                 };
 
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 match e.name().as_ref() {
@@ -518,8 +484,10 @@ fn parse_item(
                                 if attr.key.as_ref() == b"href"
                                     && let Ok(value) = attr.unescape_value()
                                 {
-                                    itunes.image =
-                                        Some(limit_string(&value, limits.max_attribute_length));
+                                    itunes.image = Some(truncate_to_length(
+                                        &value,
+                                        limits.max_attribute_length,
+                                    ));
                                 }
                             }
                             // NOTE: Don't call skip_element - itunes:image is typically self-closing
@@ -753,12 +721,7 @@ fn parse_image(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 match e.local_name().as_ref() {
                     b"url" => url = read_text(reader, buf, limits)?,
@@ -821,12 +784,7 @@ fn parse_source(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 match e.local_name().as_ref() {
                     b"title" => title = Some(read_text(reader, buf, limits)?),
@@ -846,57 +804,6 @@ fn parse_source(
     Ok(Source { title, link, id })
 }
 
-/// Check if element name matches an iTunes namespace tag
-///
-/// iTunes tags can appear as either:
-/// - `itunes:tag` (with namespace prefix)
-/// - Just `tag` in the iTunes namespace URI
-///
-/// The fallback `name == tag` is intentional and safe because:
-/// 1. iTunes namespace elements SHOULD have a prefix (e.g., `itunes:author`)
-/// 2. Fallback exists for feeds that don't use the prefix but declare iTunes namespace
-/// 3. Match order in calling code ensures standard RSS elements (title, link, etc.) are
-///    handled first in the outer match statement, preventing incorrect matches
-#[inline]
-fn is_itunes_tag(name: &[u8], tag: &[u8]) -> bool {
-    // Check for "itunes:tag" pattern
-    if name.starts_with(b"itunes:") && &name[7..] == tag {
-        return true;
-    }
-    // Also check for just the tag name (some feeds don't use prefix)
-    name == tag
-}
-
-/// Check if element name matches a Dublin Core namespace tag
-#[inline]
-fn is_dc_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"dc:") {
-        std::str::from_utf8(&name[3..]).ok()
-    } else {
-        None
-    }
-}
-
-/// Check if element name matches a Content namespace tag
-#[inline]
-fn is_content_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"content:") {
-        std::str::from_utf8(&name[8..]).ok()
-    } else {
-        None
-    }
-}
-
-/// Check if element name matches a Media RSS namespace tag
-#[inline]
-fn is_media_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"media:") {
-        std::str::from_utf8(&name[6..]).ok()
-    } else {
-        None
-    }
-}
-
 /// Parse iTunes owner from <itunes:owner> element
 fn parse_itunes_owner(
     reader: &mut Reader<&[u8]>,
@@ -910,12 +817,7 @@ fn parse_itunes_owner(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let tag_name = e.local_name();
                 if is_itunes_tag(tag_name.as_ref(), b"name") {

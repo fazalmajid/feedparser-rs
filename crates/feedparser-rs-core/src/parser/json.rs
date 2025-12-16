@@ -9,7 +9,7 @@ use crate::{
         Content, Enclosure, Entry, FeedMeta, FeedVersion, Image, LimitedCollectionExt, Link,
         ParseFrom, ParsedFeed, Person, Tag, TextConstruct,
     },
-    util::date::parse_date,
+    util::{date::parse_date, text::truncate_to_length},
 };
 use serde_json::Value;
 
@@ -76,7 +76,7 @@ pub fn parse_json_feed_with_limits(data: &[u8], limits: ParserLimits) -> Result<
 
 fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits) {
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
-        let truncated = truncate_text(title, limits.max_text_length);
+        let truncated = truncate_to_length(title, limits.max_text_length);
         feed.set_title(TextConstruct::text(&truncated));
     }
 
@@ -94,7 +94,7 @@ fn parse_feed_metadata(json: &Value, feed: &mut FeedMeta, limits: &ParserLimits)
     }
 
     if let Some(description) = json.get("description").and_then(|v| v.as_str()) {
-        let truncated = truncate_text(description, limits.max_text_length);
+        let truncated = truncate_to_length(description, limits.max_text_length);
         feed.subtitle_detail = Some(TextConstruct::text(&truncated));
         feed.subtitle = Some(truncated);
     }
@@ -160,26 +160,26 @@ fn parse_item(json: &Value, limits: &ParserLimits) -> Entry {
     }
 
     if let Some(title) = json.get("title").and_then(|v| v.as_str()) {
-        let truncated = truncate_text(title, limits.max_text_length);
+        let truncated = truncate_to_length(title, limits.max_text_length);
         entry.set_title(TextConstruct::text(&truncated));
     }
 
     if let Some(content_html) = json.get("content_html").and_then(|v| v.as_str()) {
-        let text = truncate_text(content_html, limits.max_text_length);
+        let text = truncate_to_length(content_html, limits.max_text_length);
         let _ = entry
             .content
             .try_push_limited(Content::html(text), limits.max_entries);
     }
 
     if let Some(content_text) = json.get("content_text").and_then(|v| v.as_str()) {
-        let text = truncate_text(content_text, limits.max_text_length);
+        let text = truncate_to_length(content_text, limits.max_text_length);
         let _ = entry
             .content
             .try_push_limited(Content::plain(text), limits.max_entries);
     }
 
     if let Some(summary) = json.get("summary").and_then(|v| v.as_str()) {
-        let truncated = truncate_text(summary, limits.max_text_length);
+        let truncated = truncate_to_length(summary, limits.max_text_length);
         entry.set_summary(TextConstruct::text(&truncated));
     }
 
@@ -262,15 +262,6 @@ fn parse_authors(
         author.clone_from(&parsed.name);
         *author_detail = Some(parsed.clone());
         let _ = authors.try_push_limited(parsed, limits.max_entries);
-    }
-}
-
-/// Truncate text to maximum length
-fn truncate_text(text: &str, max_length: usize) -> String {
-    if text.len() <= max_length {
-        text.to_string()
-    } else {
-        text.chars().take(max_length).collect()
     }
 }
 
@@ -496,9 +487,9 @@ mod tests {
     }
 
     #[test]
-    fn test_truncate_text() {
-        assert_eq!(truncate_text("hello", 10), "hello");
-        assert_eq!(truncate_text("hello world", 5), "hello");
-        assert_eq!(truncate_text("", 10), "");
+    fn test_truncate_to_length() {
+        assert_eq!(truncate_to_length("hello", 10), "hello");
+        assert_eq!(truncate_to_length("hello world", 5), "hello");
+        assert_eq!(truncate_to_length("", 10), "");
     }
 }

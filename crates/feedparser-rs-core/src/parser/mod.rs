@@ -4,6 +4,7 @@ mod detect;
 pub mod json;
 pub mod namespace_detection;
 pub mod rss;
+pub mod rss10;
 
 use crate::{error::Result, types::ParsedFeed};
 
@@ -63,7 +64,6 @@ pub fn parse(data: &[u8]) -> Result<ParsedFeed> {
 /// - Format is unknown or unsupported
 /// - Fatal parsing error occurs
 pub fn parse_with_limits(data: &[u8], limits: crate::ParserLimits) -> Result<ParsedFeed> {
-    use crate::FeedError;
     use crate::types::FeedVersion;
 
     // Detect format
@@ -79,10 +79,8 @@ pub fn parse_with_limits(data: &[u8], limits: crate::ParserLimits) -> Result<Par
         // Atom variants
         FeedVersion::Atom10 | FeedVersion::Atom03 => atom::parse_atom10_with_limits(data, limits),
 
-        // RSS 1.0 (RDF) - TODO: Phase 3
-        FeedVersion::Rss10 => Err(FeedError::InvalidFormat(
-            "RSS 1.0 not yet supported (Phase 3)".to_string(),
-        )),
+        // RSS 1.0 (RDF)
+        FeedVersion::Rss10 => rss10::parse_rss10_with_limits(data, limits),
 
         // JSON Feed
         FeedVersion::JsonFeed10 | FeedVersion::JsonFeed11 => {

@@ -2,6 +2,7 @@ use super::{
     common::{
         Content, Enclosure, Link, MediaContent, MediaThumbnail, Person, Source, Tag, TextConstruct,
     },
+    generics::LimitedCollectionExt,
     podcast::{ItunesEntryMeta, PodcastPerson, PodcastTranscript},
 };
 use chrono::{DateTime, Utc};
@@ -176,6 +177,38 @@ impl Entry {
     pub fn set_publisher(&mut self, mut person: Person) {
         self.publisher = person.name.take();
         self.publisher_detail = Some(person);
+    }
+
+    /// Sets the primary link and adds it to the links collection
+    ///
+    /// This is a convenience method that:
+    /// 1. Sets the `link` field (if not already set)
+    /// 2. Adds an "alternate" link to the `links` collection
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs::Entry;
+    ///
+    /// let mut entry = Entry::default();
+    /// entry.set_alternate_link("https://example.com/post/1".to_string(), 10);
+    /// assert_eq!(entry.link.as_deref(), Some("https://example.com/post/1"));
+    /// assert_eq!(entry.links.len(), 1);
+    /// assert_eq!(entry.links[0].rel.as_deref(), Some("alternate"));
+    /// ```
+    #[inline]
+    pub fn set_alternate_link(&mut self, href: String, max_links: usize) {
+        if self.link.is_none() {
+            self.link = Some(href.clone());
+        }
+        self.links.try_push_limited(
+            Link {
+                href,
+                rel: Some("alternate".to_string()),
+                ..Default::default()
+            },
+            max_links,
+        );
     }
 }
 

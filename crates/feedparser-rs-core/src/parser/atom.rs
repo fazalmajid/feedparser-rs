@@ -13,8 +13,8 @@ use crate::{
 use quick_xml::{Reader, events::Event};
 
 use super::common::{
-    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, bytes_to_string, init_feed,
-    read_text, skip_element, skip_to_end,
+    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, bytes_to_string, check_depth,
+    init_feed, is_content_tag, is_dc_tag, is_media_tag, read_text, skip_element, skip_to_end,
 };
 
 /// Parse Atom 1.0 feed from raw bytes
@@ -107,12 +107,7 @@ fn parse_feed_element(
                 };
 
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {depth} exceeds maximum {}",
-                        limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let element = e.to_owned();
                 // Use name() instead of local_name() to preserve namespace prefixes
@@ -266,12 +261,7 @@ fn parse_entry(
                 };
 
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {depth} exceeds maximum {}",
-                        limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let element = e.to_owned();
                 // Use name() instead of local_name() to preserve namespace prefixes
@@ -468,12 +458,7 @@ fn parse_person(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 match e.local_name().as_ref() {
                     b"name" => name = Some(read_text(reader, buf, limits)?),
@@ -568,12 +553,7 @@ fn parse_atom_source(
         match reader.read_event_into(buf) {
             Ok(Event::Start(e) | Event::Empty(e)) => {
                 *depth += 1;
-                if *depth > limits.max_nesting_depth {
-                    return Err(FeedError::InvalidFormat(format!(
-                        "XML nesting depth {} exceeds maximum {}",
-                        depth, limits.max_nesting_depth
-                    )));
-                }
+                check_depth(*depth, limits.max_nesting_depth)?;
 
                 let element = e.to_owned();
                 // Use name() instead of local_name() to preserve namespace prefixes
@@ -603,36 +583,6 @@ fn parse_atom_source(
     }
 
     Ok(Source { title, link, id })
-}
-
-/// Check if element name matches a Dublin Core namespace tag
-#[inline]
-fn is_dc_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"dc:") {
-        std::str::from_utf8(&name[3..]).ok()
-    } else {
-        None
-    }
-}
-
-/// Check if element name matches a Content namespace tag
-#[inline]
-fn is_content_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"content:") {
-        std::str::from_utf8(&name[8..]).ok()
-    } else {
-        None
-    }
-}
-
-/// Check if element name matches a Media RSS namespace tag
-#[inline]
-fn is_media_tag(name: &[u8]) -> Option<&str> {
-    if name.starts_with(b"media:") {
-        std::str::from_utf8(&name[6..]).ok()
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]
