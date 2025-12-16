@@ -62,7 +62,7 @@ pub mod namespaces {
     /// Podcast 2.0
     pub const PODCAST: &str = "https://podcastindex.org/namespace/1.0";
 
-    /// `GeoRSS`
+    /// GeoRSS
     pub const GEORSS: &str = "http://www.georss.org/georss";
 
     /// Creative Commons (modern)
