@@ -50,18 +50,9 @@ args = [
 [tasks.clippy-sarif]
 description = "Generate SARIF output from clippy for GitHub integration"
 dependencies = ["install-clippy-sarif"]
-command = "cargo"
-args = [
-    "clippy",
-    "--all-targets",
-    "--all-features",
-    "--workspace",
-    "--exclude", "feedparser-rs-py",
-    "--message-format=json",
-    "--",
-    "-D", "warnings"
-]
 script = '''
+#!/bin/bash
+set -e
 cargo clippy --all-targets --all-features --workspace \
     --exclude feedparser-rs-py --message-format=json -- -D warnings | \
 clippy-sarif | tee clippy-results.sarif | sarif-fmt
