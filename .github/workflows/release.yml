@@ -216,6 +216,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: npm-build
     timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/feedparser-rs
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -235,11 +241,9 @@ jobs:
           ls -lh prebuilts/
       - run: npm ci
         working-directory: crates/feedparser-rs-node
-      - name: Publish
+      - name: Publish with provenance
         working-directory: crates/feedparser-rs-node
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
   # ============================================================================
   # GITHUB RELEASE
