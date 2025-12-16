@@ -14,6 +14,12 @@ pub struct PyParsedFeed {
     encoding: String,
     version: String,
     namespaces: Py<PyDict>,
+    status: Option<u16>,
+    href: Option<String>,
+    etag: Option<String>,
+    modified: Option<String>,
+    #[cfg(feature = "http")]
+    headers: Option<Py<PyDict>>,
 }
 
 impl PyParsedFeed {
@@ -31,6 +37,17 @@ impl PyParsedFeed {
             namespaces.set_item(prefix, uri)?;
         }
 
+        #[cfg(feature = "http")]
+        let headers = if let Some(headers_map) = core.headers {
+            let headers_dict = PyDict::new(py);
+            for (key, value) in headers_map {
+                headers_dict.set_item(key, value)?;
+            }
+            Some(headers_dict.unbind())
+        } else {
+            None
+        };
+
         Ok(Self {
             feed,
             entries: entries?,
@@ -39,6 +56,12 @@ impl PyParsedFeed {
             encoding: core.encoding,
             version: core.version.to_string(),
             namespaces: namespaces.unbind(),
+            status: core.status,
+            href: core.href,
+            etag: core.etag,
+            modified: core.modified,
+            #[cfg(feature = "http")]
+            headers,
         })
     }
 }
@@ -78,6 +101,32 @@ impl PyParsedFeed {
     #[getter]
     fn namespaces(&self, py: Python<'_>) -> Py<PyDict> {
         self.namespaces.clone_ref(py)
+    }
+
+    #[getter]
+    fn status(&self) -> Option<u16> {
+        self.status
+    }
+
+    #[getter]
+    fn href(&self) -> Option<&str> {
+        self.href.as_deref()
+    }
+
+    #[getter]
+    fn etag(&self) -> Option<&str> {
+        self.etag.as_deref()
+    }
+
+    #[getter]
+    fn modified(&self) -> Option<&str> {
+        self.modified.as_deref()
+    }
+
+    #[cfg(feature = "http")]
+    #[getter]
+    fn headers(&self, py: Python<'_>) -> Option<Py<PyDict>> {
+        self.headers.as_ref().map(|h| h.clone_ref(py))
     }
 
     fn __repr__(&self) -> String {

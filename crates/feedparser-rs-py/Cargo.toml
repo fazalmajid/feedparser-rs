@@ -18,3 +18,7 @@ crate-type = ["cdylib"]
 feedparser-rs-core = { path = "../feedparser-rs-core" }
 pyo3 = { workspace = true, features = ["extension-module", "chrono"] }
 chrono = { workspace = true, features = ["clock"] }
+
+[features]
+default = ["http"]
+http = ["feedparser-rs-core/http"]

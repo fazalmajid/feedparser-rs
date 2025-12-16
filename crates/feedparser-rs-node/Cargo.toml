@@ -17,5 +17,9 @@ feedparser-rs-core = { path = "../feedparser-rs-core" }
 napi = { workspace = true, features = ["napi9", "error_anyhow"] }
 napi-derive = { workspace = true }
 
+[features]
+default = ["http"]
+http = ["feedparser-rs-core/http"]
+
 [build-dependencies]
 napi-build = "2.1"

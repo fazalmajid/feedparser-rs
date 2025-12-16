@@ -7,8 +7,9 @@ use std::collections::HashMap;
 use feedparser_rs_core::{
     self as core, Content as CoreContent, Enclosure as CoreEnclosure, Entry as CoreEntry,
     FeedMeta as CoreFeedMeta, Generator as CoreGenerator, Image as CoreImage, Link as CoreLink,
-    ParsedFeed as CoreParsedFeed, ParserLimits, Person as CorePerson, Source as CoreSource,
-    Tag as CoreTag, TextConstruct as CoreTextConstruct, TextType,
+    ParsedFeed as CoreParsedFeed, ParserLimits, Person as CorePerson,
+    PodcastPerson as CorePodcastPerson, PodcastTranscript as CorePodcastTranscript,
+    Source as CoreSource, Tag as CoreTag, TextConstruct as CoreTextConstruct, TextType,
 };
 
 /// Default maximum feed size (100 MB) - prevents DoS attacks
@@ -103,6 +104,114 @@ pub fn detect_format(source: Either<Buffer, String>) -> String {
     version.to_string()
 }
 
+/// Parse feed from HTTP/HTTPS URL with conditional GET support
+///
+/// Fetches the feed from the given URL and parses it. Supports conditional GET
+/// using ETag and Last-Modified headers for bandwidth-efficient caching.
+///
+/// # Arguments
+///
+/// * `url` - HTTP or HTTPS URL to fetch
+/// * `etag` - Optional ETag from previous fetch for conditional GET
+/// * `modified` - Optional Last-Modified timestamp from previous fetch
+/// * `user_agent` - Optional custom User-Agent header
+///
+/// # Returns
+///
+/// Parsed feed result with HTTP metadata fields populated:
+/// - `status`: HTTP status code (200, 304, etc.)
+/// - `href`: Final URL after redirects
+/// - `etag`: ETag header value (for next request)
+/// - `modified`: Last-Modified header value (for next request)
+/// - `headers`: Full HTTP response headers
+///
+/// On 304 Not Modified, returns a feed with empty entries but status=304.
+///
+/// # Examples
+///
+/// ```javascript
+/// const feedparser = require('feedparser-rs');
+///
+/// // First fetch
+/// const feed = await feedparser.parseUrl("https://example.com/feed.xml");
+/// console.log(feed.feed.title);
+/// console.log(`ETag: ${feed.etag}`);
+///
+/// // Subsequent fetch with caching
+/// const feed2 = await feedparser.parseUrl(
+///   "https://example.com/feed.xml",
+///   feed.etag,
+///   feed.modified
+/// );
+///
+/// if (feed2.status === 304) {
+///   console.log("Feed not modified, use cached version");
+/// }
+/// ```
+#[cfg(feature = "http")]
+#[napi]
+pub fn parse_url(
+    url: String,
+    etag: Option<String>,
+    modified: Option<String>,
+    user_agent: Option<String>,
+) -> Result<ParsedFeed> {
+    let parsed = core::parse_url(
+        &url,
+        etag.as_deref(),
+        modified.as_deref(),
+        user_agent.as_deref(),
+    )
+    .map_err(|e| Error::from_reason(format!("HTTP error: {}", e)))?;
+
+    Ok(ParsedFeed::from(parsed))
+}
+
+/// Parse feed from URL with custom resource limits
+///
+/// Like `parseUrl` but allows specifying custom limits for DoS protection.
+///
+/// # Examples
+///
+/// ```javascript
+/// const feedparser = require('feedparser-rs');
+///
+/// const feed = await feedparser.parseUrlWithOptions(
+///   "https://example.com/feed.xml",
+///   null, // etag
+///   null, // modified
+///   null, // user_agent
+///   10485760 // max_size: 10MB
+/// );
+/// ```
+#[cfg(feature = "http")]
+#[napi]
+pub fn parse_url_with_options(
+    url: String,
+    etag: Option<String>,
+    modified: Option<String>,
+    user_agent: Option<String>,
+    max_size: Option<u32>,
+) -> Result<ParsedFeed> {
+    let max_feed_size = max_size.map_or(DEFAULT_MAX_FEED_SIZE, |s| s as usize);
+
+    let limits = ParserLimits {
+        max_feed_size_bytes: max_feed_size,
+        ..ParserLimits::default()
+    };
+
+    let parsed = core::parse_url_with_limits(
+        &url,
+        etag.as_deref(),
+        modified.as_deref(),
+        user_agent.as_deref(),
+        limits,
+    )
+    .map_err(|e| Error::from_reason(format!("HTTP error: {}", e)))?;
+
+    Ok(ParsedFeed::from(parsed))
+}
+
 /// Parsed feed result
 ///
 /// This is analogous to Python feedparser's `FeedParserDict`.
@@ -122,6 +231,17 @@ pub struct ParsedFeed {
     pub version: String,
     /// XML namespaces (prefix -> URI)
     pub namespaces: HashMap<String, String>,
+    /// HTTP status code (if fetched from URL)
+    pub status: Option<u32>,
+    /// Final URL after redirects (if fetched from URL)
+    pub href: Option<String>,
+    /// ETag header from HTTP response
+    pub etag: Option<String>,
+    /// Last-Modified header from HTTP response
+    pub modified: Option<String>,
+    /// HTTP response headers (if fetched from URL)
+    #[cfg(feature = "http")]
+    pub headers: Option<HashMap<String, String>>,
 }
 
 impl From<CoreParsedFeed> for ParsedFeed {
@@ -134,6 +254,12 @@ impl From<CoreParsedFeed> for ParsedFeed {
             encoding: core.encoding,
             version: core.version.to_string(),
             namespaces: core.namespaces,
+            status: core.status.map(|s| s as u32),
+            href: core.href,
+            etag: core.etag,
+            modified: core.modified,
+            #[cfg(feature = "http")]
+            headers: core.headers,
         }
     }
 }
@@ -269,33 +395,85 @@ pub struct Entry {
     pub comments: Option<String>,
     /// Source feed reference
     pub source: Option<Source>,
+    /// Podcast transcripts
+    pub podcast_transcripts: Vec<PodcastTranscript>,
+    /// Podcast persons
+    pub podcast_persons: Vec<PodcastPerson>,
 }
 
 impl From<CoreEntry> for Entry {
     fn from(core: CoreEntry) -> Self {
+        // Pre-allocate Vec capacity to avoid reallocations
+        let links_cap = core.links.len();
+        let content_cap = core.content.len();
+        let authors_cap = core.authors.len();
+        let contributors_cap = core.contributors.len();
+        let tags_cap = core.tags.len();
+        let enclosures_cap = core.enclosures.len();
+        let transcripts_cap = core.podcast_transcripts.len();
+        let persons_cap = core.podcast_persons.len();
+
         Self {
             id: core.id,
             title: core.title,
             title_detail: core.title_detail.map(TextConstruct::from),
             link: core.link,
-            links: core.links.into_iter().map(Link::from).collect(),
+            links: {
+                let mut v = Vec::with_capacity(links_cap);
+                v.extend(core.links.into_iter().map(Link::from));
+                v
+            },
             summary: core.summary,
             summary_detail: core.summary_detail.map(TextConstruct::from),
-            content: core.content.into_iter().map(Content::from).collect(),
+            content: {
+                let mut v = Vec::with_capacity(content_cap);
+                v.extend(core.content.into_iter().map(Content::from));
+                v
+            },
             published: core.published.map(|dt| dt.timestamp_millis()),
             updated: core.updated.map(|dt| dt.timestamp_millis()),
             created: core.created.map(|dt| dt.timestamp_millis()),
             expired: core.expired.map(|dt| dt.timestamp_millis()),
             author: core.author,
             author_detail: core.author_detail.map(Person::from),
-            authors: core.authors.into_iter().map(Person::from).collect(),
-            contributors: core.contributors.into_iter().map(Person::from).collect(),
+            authors: {
+                let mut v = Vec::with_capacity(authors_cap);
+                v.extend(core.authors.into_iter().map(Person::from));
+                v
+            },
+            contributors: {
+                let mut v = Vec::with_capacity(contributors_cap);
+                v.extend(core.contributors.into_iter().map(Person::from));
+                v
+            },
             publisher: core.publisher,
             publisher_detail: core.publisher_detail.map(Person::from),
-            tags: core.tags.into_iter().map(Tag::from).collect(),
-            enclosures: core.enclosures.into_iter().map(Enclosure::from).collect(),
+            tags: {
+                let mut v = Vec::with_capacity(tags_cap);
+                v.extend(core.tags.into_iter().map(Tag::from));
+                v
+            },
+            enclosures: {
+                let mut v = Vec::with_capacity(enclosures_cap);
+                v.extend(core.enclosures.into_iter().map(Enclosure::from));
+                v
+            },
             comments: core.comments,
             source: core.source.map(Source::from),
+            podcast_transcripts: {
+                let mut v = Vec::with_capacity(transcripts_cap);
+                v.extend(
+                    core.podcast_transcripts
+                        .into_iter()
+                        .map(PodcastTranscript::from),
+                );
+                v
+            },
+            podcast_persons: {
+                let mut v = Vec::with_capacity(persons_cap);
+                v.extend(core.podcast_persons.into_iter().map(PodcastPerson::from));
+                v
+            },
         }
     }
 }
@@ -517,6 +695,58 @@ impl From<CoreSource> for Source {
             title: core.title,
             link: core.link,
             id: core.id,
+        }
+    }
+}
+
+/// Podcast transcript metadata
+#[napi(object)]
+pub struct PodcastTranscript {
+    /// Transcript URL
+    pub url: String,
+    /// Transcript type (e.g., "text/plain", "application/srt")
+    #[napi(js_name = "type")]
+    pub transcript_type: Option<String>,
+    /// Transcript language
+    pub language: Option<String>,
+    /// Relationship type (e.g., "captions", "chapters")
+    pub rel: Option<String>,
+}
+
+impl From<CorePodcastTranscript> for PodcastTranscript {
+    fn from(core: CorePodcastTranscript) -> Self {
+        Self {
+            url: core.url,
+            transcript_type: core.transcript_type,
+            language: core.language,
+            rel: core.rel,
+        }
+    }
+}
+
+/// Podcast person metadata
+#[napi(object)]
+pub struct PodcastPerson {
+    /// Person's name
+    pub name: String,
+    /// Person's role (e.g., "host", "guest")
+    pub role: Option<String>,
+    /// Person's group (e.g., "cast", "crew")
+    pub group: Option<String>,
+    /// Person's image URL
+    pub img: Option<String>,
+    /// Person's URL/website
+    pub href: Option<String>,
+}
+
+impl From<CorePodcastPerson> for PodcastPerson {
+    fn from(core: CorePodcastPerson) -> Self {
+        Self {
+            name: core.name,
+            role: core.role,
+            group: core.group,
+            img: core.img,
+            href: core.href,
         }
     }
 }

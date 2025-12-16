@@ -2,7 +2,7 @@ use super::{
     common::{
         Content, Enclosure, Link, MediaContent, MediaThumbnail, Person, Source, Tag, TextConstruct,
     },
-    podcast::ItunesEntryMeta,
+    podcast::{ItunesEntryMeta, PodcastPerson, PodcastTranscript},
 };
 use chrono::{DateTime, Utc};
 
@@ -67,6 +67,10 @@ pub struct Entry {
     pub media_thumbnails: Vec<MediaThumbnail>,
     /// Media RSS content items
     pub media_content: Vec<MediaContent>,
+    /// Podcast 2.0 transcripts for this episode
+    pub podcast_transcripts: Vec<PodcastTranscript>,
+    /// Podcast 2.0 persons for this episode (hosts, guests, etc.)
+    pub podcast_persons: Vec<PodcastPerson>,
 }
 
 impl Entry {
@@ -78,6 +82,8 @@ impl Entry {
     /// - 1 author
     /// - 2-3 tags
     /// - 0-1 enclosures
+    /// - 2 podcast transcripts (typical for podcasts with multiple languages)
+    /// - 4 podcast persons (host, co-hosts, guests)
     ///
     /// # Examples
     ///
@@ -98,6 +104,8 @@ impl Entry {
             dc_subject: Vec::with_capacity(2),
             media_thumbnails: Vec::with_capacity(1),
             media_content: Vec::with_capacity(1),
+            podcast_transcripts: Vec::with_capacity(2),
+            podcast_persons: Vec::with_capacity(4),
             ..Default::default()
         }
     }

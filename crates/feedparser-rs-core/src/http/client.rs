@@ -51,9 +51,19 @@ impl FeedHttpClient {
     }
 
     /// Sets a custom User-Agent header
+    ///
+    /// # Security
+    ///
+    /// User-Agent is truncated to 512 bytes to prevent header injection attacks.
     #[must_use]
     pub fn with_user_agent(mut self, agent: String) -> Self {
-        self.user_agent = agent;
+        // Truncate to 512 bytes to prevent header injection
+        const MAX_USER_AGENT_LEN: usize = 512;
+        self.user_agent = if agent.len() > MAX_USER_AGENT_LEN {
+            agent.chars().take(MAX_USER_AGENT_LEN).collect()
+        } else {
+            agent
+        };
         self
     }
 
@@ -125,16 +135,30 @@ impl FeedHttpClient {
             HeaderValue::from_static("gzip, deflate, br"),
         );
 
-        // Conditional GET headers
+        // Conditional GET headers with length validation
         if let Some(etag_val) = etag {
-            Self::insert_header(&mut headers, IF_NONE_MATCH, etag_val, "ETag")?;
+            // Truncate ETag to 1KB to prevent oversized headers
+            const MAX_ETAG_LEN: usize = 1024;
+            let sanitized_etag = if etag_val.len() > MAX_ETAG_LEN {
+                &etag_val[..MAX_ETAG_LEN]
+            } else {
+                etag_val
+            };
+            Self::insert_header(&mut headers, IF_NONE_MATCH, sanitized_etag, "ETag")?;
         }
 
         if let Some(modified_val) = modified {
+            // Truncate Last-Modified to 64 bytes (RFC 822 dates are ~30 bytes)
+            const MAX_MODIFIED_LEN: usize = 64;
+            let sanitized_modified = if modified_val.len() > MAX_MODIFIED_LEN {
+                &modified_val[..MAX_MODIFIED_LEN]
+            } else {
+                modified_val
+            };
             Self::insert_header(
                 &mut headers,
                 IF_MODIFIED_SINCE,
-                modified_val,
+                sanitized_modified,
                 "Last-Modified",
             )?;
         }
@@ -161,8 +185,8 @@ impl FeedHttpClient {
         let status = response.status().as_u16();
         let url = response.url().to_string();
 
-        // Convert headers to HashMap
-        let mut headers_map = HashMap::new();
+        // Convert headers to HashMap with pre-allocated capacity
+        let mut headers_map = HashMap::with_capacity(response.headers().len());
         for (name, value) in response.headers() {
             if let Ok(val_str) = value.to_str() {
                 headers_map.insert(name.to_string(), val_str.to_string());

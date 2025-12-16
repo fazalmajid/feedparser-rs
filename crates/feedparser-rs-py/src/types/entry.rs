@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 use super::common::{PyContent, PyEnclosure, PyLink, PyPerson, PySource, PyTag, PyTextConstruct};
 use super::datetime::optional_datetime_to_struct_time;
-use super::podcast::PyItunesEntryMeta;
+use super::podcast::{PyItunesEntryMeta, PyPodcastPerson, PyPodcastTranscript};
 
 #[pyclass(name = "Entry", module = "feedparser_rs")]
 #[derive(Clone)]
@@ -194,6 +194,24 @@ impl PyEntry {
             .itunes
             .as_ref()
             .map(|i| PyItunesEntryMeta::from_core(i.clone()))
+    }
+
+    #[getter]
+    fn podcast_transcripts(&self) -> Vec<PyPodcastTranscript> {
+        self.inner
+            .podcast_transcripts
+            .iter()
+            .map(|t| PyPodcastTranscript::from_core(t.clone()))
+            .collect()
+    }
+
+    #[getter]
+    fn podcast_persons(&self) -> Vec<PyPodcastPerson> {
+        self.inner
+            .podcast_persons
+            .iter()
+            .map(|p| PyPodcastPerson::from_core(p.clone()))
+            .collect()
     }
 
     fn __repr__(&self) -> String {
