@@ -227,7 +227,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-          registry-url: 'https://registry.npmjs.org'
       - uses: actions/download-artifact@v4
         with:
           path: crates/feedparser-rs-node/artifacts
@@ -244,8 +243,6 @@ jobs:
       - name: Publish with provenance
         working-directory: crates/feedparser-rs-node
         run: npm publish --access public --provenance --ignore-scripts
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ============================================================================
   # GITHUB RELEASE
