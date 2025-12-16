@@ -1,7 +1,7 @@
 {
   "name": "feedparser-rs",
   "version": "0.1.0",
-  "description": "High-performance RSS/Atom/JSON Feed parser (drop-in feedparser replacement)",
+  "description": "High-performance RSS/Atom/JSON Feed parser for Node.js",
   "main": "index.js",
   "types": "index.d.ts",
   "repository": {

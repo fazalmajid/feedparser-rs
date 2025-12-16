@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "feedparser-rs"
 version = "0.1.0"
-description = "High-performance RSS/Atom/JSON Feed parser (drop-in feedparser replacement)"
+description = "High-performance RSS/Atom/JSON Feed parser with feedparser-compatible API"
 readme = "README.md"
 license = { text = "MIT OR Apache-2.0" }
 requires-python = ">=3.9"

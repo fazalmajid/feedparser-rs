@@ -7,8 +7,8 @@ This is the core parsing library that powers the Python and Node.js bindings.
 ## Features
 
 - **Multi-format**: RSS 0.9x/1.0/2.0, Atom 0.3/1.0, JSON Feed 1.0/1.1
-- **Tolerant**: Bozo flag for malformed feeds (like Python feedparser)
-- **Fast**: Written in Rust, 10-100x faster than Python feedparser
+- **Tolerant**: Bozo flag for graceful handling of malformed feeds
+- **Fast**: Native Rust performance
 - **Safe**: No unsafe code, comprehensive error handling
 - **HTTP support**: Fetch feeds from URLs with compression and conditional GET
 - **Podcast support**: iTunes and Podcast 2.0 namespace extensions
@@ -84,15 +84,9 @@ feedparser-rs = { version = "0.1", default-features = false }
 
 ## Performance
 
-Benchmarks show 10-100x speedup compared to Python feedparser:
+Rust implementation provides significant performance improvements over interpreted alternatives.
 
-| Feed Size | feedparser-rs | feedparser (Python) | Speedup |
-|-----------|---------------|---------------------|---------|
-| 3 KB      | 0.05 ms       | 5 ms                | 100x    |
-| 24 KB     | 0.5 ms        | 50 ms               | 100x    |
-| 237 KB    | 5 ms          | 500 ms              | 100x    |
-
-See [benchmarks/](../../benchmarks/) for detailed benchmark code.
+See [benchmarks/](../../benchmarks/) for benchmark code and methodology.
 
 ## API Documentation
 

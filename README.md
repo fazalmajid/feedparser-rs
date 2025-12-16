@@ -6,15 +6,15 @@
 [![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
 [![License](https://img.shields.io/crates/l/feedparser-rs)](LICENSE-MIT)
 
-High-performance RSS/Atom/JSON Feed parser for Rust, with Python and Node.js bindings. A drop-in replacement for Python's `feedparser` library with 10-100x performance improvement.
+High-performance RSS/Atom/JSON Feed parser written in Rust, with Python and Node.js bindings.
 
 ## Features
 
 - **Multi-format support** — RSS 0.9x, 1.0, 2.0 / Atom 0.3, 1.0 / JSON Feed 1.0, 1.1
-- **Tolerant parsing** — Handles malformed feeds with `bozo` flag pattern (like Python feedparser)
-- **HTTP fetching** — Built-in support for fetching feeds from URLs with compression
+- **Tolerant parsing** — Handles malformed feeds gracefully with `bozo` flag pattern
+- **HTTP fetching** — Built-in URL fetching with compression support (gzip, deflate, brotli)
 - **Multi-language bindings** — Native Python (PyO3) and Node.js (napi-rs) bindings
-- **feedparser-compatible API** — 100% API compatibility with Python feedparser
+- **Familiar API** — Inspired by Python's feedparser, easy to migrate existing code
 
 ## Installation
 
@@ -132,7 +132,7 @@ print(d.entries[0].published_parsed)  # time.struct_time
 ```
 
 > [!NOTE]
-> Python bindings provide `time.struct_time` for date fields, matching the original feedparser API.
+> Python bindings provide `time.struct_time` for date fields, similar to feedparser's API.
 
 ## Cargo Features
 
@@ -153,7 +153,7 @@ This repository contains multiple crates:
 
 | Crate | Description | Package |
 |-------|-------------|---------|
-| [`feedparser-rs`](crates/feedparser-rs) | Core Rust parser | [crates.io](https://crates.io/crates/feedparser-rs) |
+| [`feedparser-rs`](crates/feedparser-rs-core) | Core Rust parser | [crates.io](https://crates.io/crates/feedparser-rs) |
 | [`feedparser-rs-node`](crates/feedparser-rs-node) | Node.js bindings | [npm](https://www.npmjs.com/package/feedparser-rs) |
 | [`feedparser-rs-py`](crates/feedparser-rs-py) | Python bindings | [PyPI](https://pypi.org/project/feedparser-rs) |
 
