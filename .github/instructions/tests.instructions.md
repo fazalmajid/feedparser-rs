@@ -1,6 +1,11 @@
-# Testing Guidelines
+---
+applyTo:
+  - "tests/**"
+  - "crates/**/tests/**"
+  - "crates/**/benches/**"
+---
 
-**Applies to:** `tests/**`, `crates/**/tests/**`, `crates/**/benches/**`
+# Testing Guidelines
 
 ## Testing Philosophy
 

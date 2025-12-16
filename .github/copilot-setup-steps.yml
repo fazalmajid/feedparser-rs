@@ -1,0 +1,61 @@
+name: Copilot Setup
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUST_BACKTRACE: short
+  RUSTUP_MAX_RETRIES: 10
+
+jobs:
+  setup:
+    name: Setup Development Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install cargo-make
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-make
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "copilot-setup"
+          cache-on-failure: true
+
+      - name: Build all workspace crates
+        run: cargo build --all-features --workspace --exclude feedparser-rs-py
+
+      - name: Run tests
+        run: cargo nextest run --all-features --workspace --exclude feedparser-rs-py
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features --workspace --exclude feedparser-rs-py -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features --workspace --exclude feedparser-rs-py
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+      - name: Setup complete
+        run: |
+          echo "✅ Development environment setup complete"
+          echo "✅ All builds, tests, and lints passed"

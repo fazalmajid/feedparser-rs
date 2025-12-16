@@ -1,13 +1,10 @@
+---
+applyTo: "crates/feedparser-rs-node/**"
+---
+
 # Node.js Bindings Code Review Instructions
 
 This file contains specific code review rules for the Node.js bindings in `crates/feedparser-rs-node/`.
-
-## Scope
-
-These instructions apply to:
-- `crates/feedparser-rs-node/src/lib.rs`
-- `crates/feedparser-rs-node/build.rs`
-- Any future files in `crates/feedparser-rs-node/src/`
 
 ## Overview
 

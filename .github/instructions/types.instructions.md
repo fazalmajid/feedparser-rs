@@ -1,6 +1,8 @@
-# Type Definitions Instructions
+---
+applyTo: "crates/feedparser-rs-core/src/types/**"
+---
 
-**Applies to:** `crates/feedparser-rs-core/src/types/**`
+# Type Definitions Instructions
 
 ## Core Principles
 
