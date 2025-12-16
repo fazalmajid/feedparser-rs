@@ -74,11 +74,11 @@ jobs:
         with:
           shared-key: "security"
 
-      - name: Install cargo-make
-        uses: taiki-e/install-action@cargo-make
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
 
-      - name: Run security checks
-        run: cargo make ci-security
+      - name: Run cargo-deny
+        run: cargo deny check
 
   # Cross-platform Rust tests
   test-rust:

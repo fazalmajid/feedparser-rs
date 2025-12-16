@@ -129,49 +129,49 @@ dependencies = ["test-rust", "doctest"]
 
 [tasks.test-python]
 description = "Build and test Python bindings"
-dependencies = ["build-python", "test-python-run"]
-
-[tasks.build-python]
-description = "Build Python wheel with maturin"
 condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-py/Cargo.toml"] }
-script = '''
-#!/bin/bash
-set -e
-cd crates/feedparser-rs-py
+dependencies = ["test-python-deps", "test-python-build", "test-python-install", "test-python-run", "test-python-import"]
 
-# Check if uv is available, fallback to pip
-if command -v uv &> /dev/null; then
-    uv pip install --system maturin pytest
-else
-    pip install maturin pytest
-fi
+[tasks.test-python-deps]
+description = "Install Python dependencies"
+command = "uv"
+args = ["pip", "install", "--system", "maturin", "pytest"]
 
-maturin build --release --out dist
-'''
+[tasks.test-python-build]
+description = "Build Python wheel with maturin"
+cwd = "./crates/feedparser-rs-py"
+command = "maturin"
+args = ["build", "--release", "--out", "dist"]
+
+[tasks.test-python-install]
+description = "Install built wheel"
+cwd = "./crates/feedparser-rs-py"
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "dist/feedparser_rs-0.1.0-cp39-abi3-${CARGO_MAKE_RUST_TARGET_TRIPLE}.whl"]
+# Note: wheel name pattern may need adjustment per platform
+
+[tasks.test-python-install.linux]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.test-python-install.mac]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.test-python-install.windows]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
 
 [tasks.test-python-run]
-description = "Run pytest on Python bindings"
-condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-py/tests"] }
-script = '''
-#!/bin/bash
-set -e
-cd crates/feedparser-rs-py
+description = "Run pytest"
+cwd = "./crates/feedparser-rs-py"
+command = "pytest"
+args = ["tests/", "-v"]
 
-# Install the built wheel
-if command -v uv &> /dev/null; then
-    uv pip install --system dist/*.whl
-else
-    pip install dist/*.whl
-fi
-
-# Run tests if they exist
-if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
-    pytest tests/ -v
-fi
-
-# Test import
-python -c "import feedparser_rs; print('feedparser-rs loaded successfully')"
-'''
+[tasks.test-python-import]
+description = "Test Python import"
+command = "python"
+args = ["-c", "import feedparser_rs; print('feedparser-rs loaded successfully')"]
 
 # ============================================================================
 # Testing Tasks - Node.js
@@ -180,15 +180,25 @@ python -c "import feedparser_rs; print('feedparser-rs loaded successfully')"
 [tasks.test-node]
 description = "Build and test Node.js bindings"
 condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-node/package.json"] }
-script = '''
-#!/bin/bash
-set -e
-cd crates/feedparser-rs-node
+dependencies = ["test-node-install", "test-node-build", "test-node-run"]
 
-npm ci
-npm run build
-npm test
-'''
+[tasks.test-node-install]
+description = "Install Node.js dependencies"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["ci"]
+
+[tasks.test-node-build]
+description = "Build Node.js bindings"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["run", "build"]
+
+[tasks.test-node-run]
+description = "Run Node.js tests"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["test"]
 
 # ============================================================================
 # Coverage Tasks
@@ -219,47 +229,53 @@ echo "Coverage report generated: lcov.info"
 [tasks.coverage-python]
 description = "Generate Python code coverage"
 condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-py/tests"] }
-script = '''
-#!/bin/bash
-set -e
-cd crates/feedparser-rs-py
+dependencies = ["coverage-python-deps", "coverage-python-build", "coverage-python-install", "coverage-python-run"]
 
-# Install dependencies
-if command -v uv &> /dev/null; then
-    uv pip install --system maturin pytest pytest-cov
-else
-    pip install maturin pytest pytest-cov
-fi
+[tasks.coverage-python-deps]
+description = "Install Python coverage dependencies"
+command = "uv"
+args = ["pip", "install", "--system", "maturin", "pytest", "pytest-cov"]
 
-# Build and install wheel
-maturin build --release --out dist
-if command -v uv &> /dev/null; then
-    uv pip install --system --force-reinstall dist/*.whl
-else
-    pip install --force-reinstall dist/*.whl
-fi
+[tasks.coverage-python-build]
+description = "Build Python wheel for coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "maturin"
+args = ["build", "--release", "--out", "dist"]
 
-# Run tests with coverage if tests exist
-if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
-    pytest tests/ --cov=feedparser_rs --cov-report=xml --cov-report=term
-    echo "Python coverage report generated: coverage.xml"
-fi
-'''
+[tasks.coverage-python-install]
+description = "Install built wheel for coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.coverage-python-run]
+description = "Run pytest with coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "pytest"
+args = ["tests/", "--cov=feedparser_rs", "--cov-report=xml", "--cov-report=term"]
 
 [tasks.coverage-node]
 description = "Generate Node.js code coverage with c8"
 condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-node/package.json"] }
-script = '''
-#!/bin/bash
-set -e
-cd crates/feedparser-rs-node
+dependencies = ["coverage-node-install", "coverage-node-build", "coverage-node-run"]
 
-npm ci
-npm run build
-npm run test:coverage
+[tasks.coverage-node-install]
+description = "Install Node.js dependencies for coverage"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["ci"]
 
-echo "Node.js coverage report generated in coverage/"
-'''
+[tasks.coverage-node-build]
+description = "Build Node.js bindings for coverage"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["run", "build"]
+
+[tasks.coverage-node-run]
+description = "Run Node.js tests with coverage"
+cwd = "./crates/feedparser-rs-node"
+command = "npm"
+args = ["run", "test:coverage"]
 
 # ============================================================================
 # MSRV Check
