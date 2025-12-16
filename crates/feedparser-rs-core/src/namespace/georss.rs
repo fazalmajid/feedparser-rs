@@ -18,7 +18,7 @@
 use crate::limits::ParserLimits;
 use crate::types::Entry;
 
-/// GeoRSS namespace URI
+/// `GeoRSS` namespace URI
 pub const GEORSS: &str = "http://www.georss.org/georss";
 
 /// Type of geographic shape
@@ -35,7 +35,7 @@ pub enum GeoType {
     Box,
 }
 
-/// Geographic location data from GeoRSS
+/// Geographic location data from `GeoRSS`
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GeoLocation {
     /// Type of geographic shape
@@ -157,7 +157,7 @@ impl GeoLocation {
     }
 }
 
-/// Parse GeoRSS element and update entry
+/// Parse `GeoRSS` element and update entry
 ///
 /// # Arguments
 ///

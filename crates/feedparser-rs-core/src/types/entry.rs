@@ -72,7 +72,7 @@ pub struct Entry {
     pub podcast_transcripts: Vec<PodcastTranscript>,
     /// Podcast 2.0 persons for this episode (hosts, guests, etc.)
     pub podcast_persons: Vec<PodcastPerson>,
-    /// GeoRSS location data
+    /// `GeoRSS` location data
     pub geo: Option<crate::namespace::georss::GeoLocation>,
 }
 
