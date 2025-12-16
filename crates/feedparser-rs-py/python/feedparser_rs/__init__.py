@@ -10,7 +10,7 @@ Usage:
     >>> print(d.feed.title)
     >>> print(d.entries[0].published_parsed)
 
-For full documentation, see: https://github.com/rabax/feedparser-rs
+For full documentation, see: https://github.com/bug-ops/feedparser-rs
 """
 
 from ._feedparser_rs import (
@@ -19,11 +19,15 @@ from ._feedparser_rs import (
     __version__,
     detect_format,
     parse,
+    parse_url,
+    parse_url_with_limits,
     parse_with_limits,
 )
 
 __all__ = [
     "parse",
+    "parse_url",
+    "parse_url_with_limits",
     "parse_with_limits",
     "detect_format",
     "FeedParserDict",
