@@ -218,7 +218,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       id-token: write
-      contents: read
+      contents: write
     environment:
       name: npm
       url: https://www.npmjs.com/package/feedparser-rs
@@ -233,17 +233,19 @@ jobs:
           path: crates/feedparser-rs-node/artifacts
           pattern: npm-*
           merge-multiple: false
-      - name: Prepare artifacts
+      - name: Prepare artifacts for napi
         working-directory: crates/feedparser-rs-node
         run: |
-          mkdir -p prebuilts
-          find artifacts -name "*.node" -exec cp {} prebuilts/ \;
-          ls -lh prebuilts/
+          # Copy artifacts to root (where napi expects them)
+          find artifacts -name "*.node" -exec cp {} . \;
+          ls -lh *.node || echo "No .node files found"
       - run: npm ci
         working-directory: crates/feedparser-rs-node
       - name: Publish with provenance
         working-directory: crates/feedparser-rs-node
         run: npm publish --access public --provenance
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
   # GITHUB RELEASE
