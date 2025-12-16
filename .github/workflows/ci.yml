@@ -197,18 +197,22 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           workspaces: crates/feedparser-rs-node
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js ${{ matrix.node }}
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: 'npm'
-          cache-dependency-path: crates/feedparser-rs-node/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: crates/feedparser-rs-node/pnpm-lock.yaml
 
       - name: Install cargo-make
         uses: taiki-e/install-action@cargo-make
 
       - name: Run Node.js tests
-        shell: bash
         run: cargo make ci-test-node
 
   # Rust code coverage
@@ -314,12 +318,17 @@ jobs:
           shared-key: "coverage-node"
           workspaces: crates/feedparser-rs-node
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: crates/feedparser-rs-node/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: crates/feedparser-rs-node/pnpm-lock.yaml
 
       - name: Install cargo-make
         uses: taiki-e/install-action@cargo-make

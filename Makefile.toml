@@ -186,19 +186,19 @@ dependencies = ["test-node-install", "test-node-build", "test-node-run"]
 description = "Install Node.js dependencies"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm ci"
+script = "pnpm install --frozen-lockfile"
 
 [tasks.test-node-build]
 description = "Build Node.js bindings"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm run build"
+script = "pnpm run build"
 
 [tasks.test-node-run]
 description = "Run Node.js tests"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm test"
+script = "pnpm test"
 
 # ============================================================================
 # Coverage Tasks
@@ -263,19 +263,19 @@ dependencies = ["coverage-node-install", "coverage-node-build", "coverage-node-r
 description = "Install Node.js dependencies for coverage"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm ci"
+script = "pnpm install --frozen-lockfile"
 
 [tasks.coverage-node-build]
 description = "Build Node.js bindings for coverage"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm run build"
+script = "pnpm run build"
 
 [tasks.coverage-node-run]
 description = "Run Node.js tests with coverage"
 cwd = "./crates/feedparser-rs-node"
 script_runner = "@shell"
-script = "npm run test:coverage"
+script = "pnpm run test:coverage"
 
 # ============================================================================
 # MSRV Check
