@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/feedparser-rs)](https://www.npmjs.com/package/feedparser-rs)
 [![CI](https://img.shields.io/github/actions/workflow/status/bug-ops/feedparser-rs/ci.yml?branch=main)](https://github.com/bug-ops/feedparser-rs/actions)
 [![codecov](https://codecov.io/gh/bug-ops/feedparser-rs/graph/badge.svg)](https://codecov.io/gh/bug-ops/feedparser-rs)
-[![License](https://img.shields.io/crates/l/feedparser-rs)](LICENSE-MIT)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 
 High-performance RSS/Atom/JSON Feed parser written in Rust, with Python and Node.js bindings.
 
