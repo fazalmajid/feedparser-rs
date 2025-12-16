@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-12-16
+
+### Fixed
+- Unified GitHub Release workflow to prevent overwrites between crates.io/PyPI/npm releases
+- Synchronized version numbers across Cargo.toml, pyproject.toml, and package.json
+
 ## [0.1.5] - 2025-12-16
 
 ### Fixed
@@ -69,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage
 - Documentation with examples
 
-[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.2...v0.1.3

@@ -156,32 +156,3 @@ jobs:
           packages-dir: dist/
           skip-existing: false
           verbose: true
-
-  # Create GitHub Release
-  github-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: [publish]
-    timeout-minutes: 10
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          body: |
-            PyPI package: https://pypi.org/project/feedparser-rs/
-
-            Install with: `pip install feedparser-rs`
