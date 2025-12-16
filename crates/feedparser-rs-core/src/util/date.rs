@@ -13,7 +13,7 @@ const DATE_FORMATS: &[&str] = &[
     "%Y-%m-%dT%H:%M:%SZ",      // 2024-12-14T10:30:45Z
     "%Y-%m-%dT%H:%M:%S",       // 2024-12-14T10:30:45 (no timezone)
     "%Y-%m-%d %H:%M:%S",       // 2024-12-14 10:30:45
-    "%Y-%m-%d",                // 2024-12-14
+    "%Y-%m-%d",             // 2024-12-14
     // W3C Date-Time variants
     "%Y-%m-%d %H:%M:%S%:z", // 2024-12-14 10:30:45+00:00
     "%Y/%m/%d %H:%M:%S",    // 2024/12/14 10:30:45
@@ -89,6 +89,30 @@ pub fn parse_date(input: &str) -> Option<DateTime<Utc>> {
     // Try RFC 2822 (RSS pubDate format)
     if let Ok(dt) = DateTime::parse_from_rfc2822(input) {
         return Some(dt.with_timezone(&Utc));
+    }
+
+    // Special handling for year-only format (e.g., "2024")
+    if let Ok(year) = input.parse::<i32>()
+        && (1000..=9999).contains(&year)
+    {
+        return NaiveDate::from_ymd_opt(year, 1, 1)
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .map(|dt| dt.and_utc());
+    }
+
+    // Special handling for year-month format (e.g., "2024-12")
+    if input.len() == 7
+        && input.chars().nth(4) == Some('-')
+        && let (Ok(year), Ok(month)) = (
+            input[..4].parse::<i32>(),
+            input[5..7].parse::<u32>(),
+        )
+        && (1000..=9999).contains(&year)
+        && (1..=12).contains(&month)
+    {
+        return NaiveDate::from_ymd_opt(year, month, 1)
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .map(|dt| dt.and_utc());
     }
 
     // Try all format strings
@@ -195,9 +219,11 @@ mod tests {
     }
 
     #[test]
-    fn test_partial_date() {
-        // Should fail gracefully
-        let dt = parse_date("2024-12");
+    fn test_partial_date_invalid() {
+        // Invalid partial dates should fail
+        let dt = parse_date("2024-13"); // Invalid month
+        assert!(dt.is_none());
+        let dt = parse_date("abcd-12");
         assert!(dt.is_none());
     }
 
@@ -281,5 +307,39 @@ mod tests {
     fn test_edge_case_invalid_date() {
         let dt = parse_date("2023-02-29");
         assert!(dt.is_none());
+    }
+
+    #[test]
+    fn test_year_only_format() {
+        let dt = parse_date("2024").unwrap();
+        assert_eq!(dt.year(), 2024);
+        assert_eq!(dt.month(), 1);
+        assert_eq!(dt.day(), 1);
+        assert_eq!(dt.hour(), 0);
+    }
+
+    #[test]
+    fn test_year_month_format() {
+        let dt = parse_date("2024-12").unwrap();
+        assert_eq!(dt.year(), 2024);
+        assert_eq!(dt.month(), 12);
+        assert_eq!(dt.day(), 1);
+        assert_eq!(dt.hour(), 0);
+    }
+
+    #[test]
+    fn test_all_new_formats() {
+        let test_cases = vec![
+            ("2024", 2024, 1, 1),
+            ("2024-12", 2024, 12, 1),
+        ];
+
+        for (date_str, year, month, day) in test_cases {
+            let dt = parse_date(date_str)
+                .unwrap_or_else(|| panic!("Failed to parse: {date_str}"));
+            assert_eq!(dt.year(), year, "Year mismatch for: {date_str}");
+            assert_eq!(dt.month(), month, "Month mismatch for: {date_str}");
+            assert_eq!(dt.day(), day, "Day mismatch for: {date_str}");
+        }
     }
 }
