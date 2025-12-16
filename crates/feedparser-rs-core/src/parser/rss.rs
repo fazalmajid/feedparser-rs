@@ -154,13 +154,19 @@ fn parse_channel(
                         }
                     }
                     _ => {
-                        let handled = parse_channel_itunes(
+                        let mut handled = parse_channel_itunes(
                             reader, &mut buf, &tag, &attrs, feed, limits, depth,
-                        )? || parse_channel_podcast(
-                            reader, &mut buf, &tag, &attrs, feed, limits,
-                        )? || parse_channel_namespace(
-                            reader, &mut buf, &tag, feed, limits, *depth,
                         )?;
+                        if !handled {
+                            handled = parse_channel_podcast(
+                                reader, &mut buf, &tag, &attrs, feed, limits,
+                            )?;
+                        }
+                        if !handled {
+                            handled = parse_channel_namespace(
+                                reader, &mut buf, &tag, feed, limits, *depth,
+                            )?;
+                        }
 
                         if !handled {
                             skip_element(reader, &mut buf, limits, *depth)?;
@@ -303,11 +309,13 @@ fn parse_channel_itunes(
         itunes.explicit = parse_explicit(&text);
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
         if let Some(value) = find_attribute(attrs, b"href") {
+            let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
             itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        Ok(true)
     } else if is_itunes_tag(tag, b"keywords") {
         let text = read_text(reader, buf, limits)?;
         let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
@@ -496,14 +504,17 @@ fn parse_item(
                         }
                     }
                     _ => {
-                        let handled =
-                            parse_item_itunes(reader, buf, &tag, &attrs, &mut entry, limits)?
-                                || parse_item_podcast(
-                                    reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
-                                )?
-                                || parse_item_namespace(
-                                    reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
-                                )?;
+                        let mut handled = parse_item_itunes(reader, buf, &tag, &attrs, &mut entry, limits)?;
+                        if !handled {
+                            handled = parse_item_podcast(
+                                reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
+                            )?;
+                        }
+                        if !handled {
+                            handled = parse_item_namespace(
+                                reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
+                            )?;
+                        }
 
                         if !handled {
                             skip_element(reader, buf, limits, *depth)?;
@@ -620,11 +631,13 @@ fn parse_item_itunes(
         itunes.explicit = parse_explicit(&text);
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
         if let Some(value) = find_attribute(attrs, b"href") {
+            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
             itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        Ok(true)
     } else if is_itunes_tag(tag, b"episode") {
         let text = read_text(reader, buf, limits)?;
         let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
