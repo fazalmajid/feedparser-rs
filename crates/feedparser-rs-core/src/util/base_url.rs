@@ -100,9 +100,7 @@ fn is_private_ip(ip: &IpAddr) -> bool {
                 || octets[0] == 127
         }
         IpAddr::V6(ipv6) => {
-            ipv6.is_loopback()
-                || ipv6.is_unspecified()
-                || (ipv6.segments()[0] & 0xfe00) == 0xfc00
+            ipv6.is_loopback() || ipv6.is_unspecified() || (ipv6.segments()[0] & 0xfe00) == 0xfc00
         }
     }
 }

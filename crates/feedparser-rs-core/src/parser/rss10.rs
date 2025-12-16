@@ -393,11 +393,7 @@ fn is_dc_tag(name: &[u8]) -> Option<&str> {
     if name.starts_with(b"dc:") {
         let tag_name = std::str::from_utf8(&name[3..]).ok()?;
         // Validate: non-empty and alphanumeric + hyphen only
-        if !tag_name.is_empty()
-            && tag_name
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '-')
-        {
+        if !tag_name.is_empty() && tag_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
             Some(tag_name)
         } else {
             None
