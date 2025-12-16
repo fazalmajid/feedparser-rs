@@ -15,8 +15,8 @@ use crate::{
 use quick_xml::{Reader, events::Event};
 
 use super::common::{
-    EVENT_BUFFER_CAPACITY, FromAttributes, LimitedCollectionExt, check_depth, init_feed,
-    is_content_tag, is_dc_tag, is_itunes_tag, is_media_tag, read_text, skip_element,
+    EVENT_BUFFER_CAPACITY, LimitedCollectionExt, check_depth, init_feed, is_content_tag, is_dc_tag,
+    is_itunes_tag, is_media_tag, read_text, skip_element,
 };
 
 /// Parse RSS 2.0 feed from raw bytes
@@ -104,57 +104,24 @@ fn parse_channel(
                 *depth += 1;
                 check_depth(*depth, limits.max_nesting_depth)?;
 
+                let tag = e.name().as_ref().to_vec();
+
+                // Clone attributes to owned values to avoid lifetime issues
+                let attrs: Vec<(Vec<u8>, String)> = e
+                    .attributes()
+                    .flatten()
+                    .filter_map(|attr| {
+                        attr.unescape_value()
+                            .ok()
+                            .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
+                    })
+                    .collect();
+
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
-                // (e.g., <image> vs <itunes:image>, <category> vs <itunes:category>)
-                match e.name().as_ref() {
-                    b"title" => {
-                        feed.feed.title = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"link" => {
-                        let link_text = read_text(reader, &mut buf, limits)?;
-                        feed.feed
-                            .set_alternate_link(link_text, limits.max_links_per_feed);
-                    }
-                    b"description" => {
-                        feed.feed.subtitle = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"language" => {
-                        feed.feed.language = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"pubDate" => {
-                        let text = read_text(reader, &mut buf, limits)?;
-                        match parse_date(&text) {
-                            Some(dt) => feed.feed.updated = Some(dt),
-                            None if !text.is_empty() => {
-                                feed.bozo = true;
-                                feed.bozo_exception = Some("Invalid pubDate format".to_string());
-                            }
-                            None => {}
-                        }
-                    }
-                    b"managingEditor" => {
-                        feed.feed.author = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"webMaster" => {
-                        feed.feed.publisher = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"generator" => {
-                        feed.feed.generator = Some(read_text(reader, &mut buf, limits)?);
-                    }
-                    b"ttl" => {
-                        let text = read_text(reader, &mut buf, limits)?;
-                        feed.feed.ttl = text.parse().ok();
-                    }
-                    b"category" => {
-                        let term = read_text(reader, &mut buf, limits)?;
-                        feed.feed.tags.try_push_limited(
-                            Tag {
-                                term,
-                                scheme: None,
-                                label: None,
-                            },
-                            limits.max_tags,
-                        );
+                match tag.as_slice() {
+                    b"title" | b"link" | b"description" | b"language" | b"pubDate"
+                    | b"managingEditor" | b"webMaster" | b"generator" | b"ttl" | b"category" => {
+                        parse_channel_standard(reader, &mut buf, &tag, feed, limits)?;
                     }
                     b"image" => {
                         if let Ok(image) = parse_image(reader, &mut buf, limits, depth) {
@@ -174,183 +141,14 @@ fn parse_channel(
                             }
                         }
                     }
-                    tag => {
-                        // Check for iTunes and Podcast 2.0 namespace tags
-                        let handled = if is_itunes_tag(tag, b"author") {
-                            let text = read_text(reader, &mut buf, limits)?;
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            itunes.author = Some(text);
-                            true
-                        } else if is_itunes_tag(tag, b"owner") {
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            if let Ok(owner) = parse_itunes_owner(reader, &mut buf, limits, depth) {
-                                itunes.owner = Some(owner);
-                            }
-                            true
-                        } else if is_itunes_tag(tag, b"category") {
-                            // Parse category with potential subcategory
-                            let mut category_text = String::new();
-                            for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"text"
-                                    && let Ok(value) = attr.unescape_value()
-                                {
-                                    category_text =
-                                        truncate_to_length(&value, limits.max_attribute_length);
-                                }
-                            }
-
-                            // Parse potential nested subcategory
-                            // We need to read until we find the closing tag for the parent category
-                            let mut subcategory_text = None;
-                            let mut nesting = 0; // Track category nesting level
-                            loop {
-                                match reader.read_event_into(&mut buf) {
-                                    Ok(Event::Start(sub_e)) => {
-                                        if is_itunes_tag(sub_e.name().as_ref(), b"category") {
-                                            nesting += 1;
-                                            if nesting == 1 {
-                                                // First nested category - this is the subcategory
-                                                for attr in sub_e.attributes().flatten() {
-                                                    if attr.key.as_ref() == b"text"
-                                                        && let Ok(value) = attr.unescape_value()
-                                                    {
-                                                        subcategory_text = Some(
-                                                            value
-                                                                .chars()
-                                                                .take(limits.max_attribute_length)
-                                                                .collect(),
-                                                        );
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    Ok(Event::Empty(sub_e)) => {
-                                        if is_itunes_tag(sub_e.name().as_ref(), b"category")
-                                            && subcategory_text.is_none()
-                                        {
-                                            // Self-closing nested category
-                                            for attr in sub_e.attributes().flatten() {
-                                                if attr.key.as_ref() == b"text"
-                                                    && let Ok(value) = attr.unescape_value()
-                                                {
-                                                    subcategory_text = Some(
-                                                        value
-                                                            .chars()
-                                                            .take(limits.max_attribute_length)
-                                                            .collect(),
-                                                    );
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    Ok(Event::End(end_e)) => {
-                                        if is_itunes_tag(end_e.name().as_ref(), b"category") {
-                                            if nesting == 0 {
-                                                // End of the parent category element
-                                                break;
-                                            }
-                                            nesting -= 1;
-                                        }
-                                    }
-                                    Ok(Event::Eof) | Err(_) => break,
-                                    _ => {}
-                                }
-                                buf.clear();
-                            }
-
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            itunes.categories.push(ItunesCategory {
-                                text: category_text,
-                                subcategory: subcategory_text,
-                            });
-                            true
-                        } else if is_itunes_tag(tag, b"explicit") {
-                            let text = read_text(reader, &mut buf, limits)?;
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            itunes.explicit = parse_explicit(&text);
-                            true
-                        } else if is_itunes_tag(tag, b"image") {
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"href"
-                                    && let Ok(value) = attr.unescape_value()
-                                {
-                                    itunes.image = Some(truncate_to_length(
-                                        &value,
-                                        limits.max_attribute_length,
-                                    ));
-                                }
-                            }
-                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
-                            //       and calling skip_element would consume the next tag's end event
-                            true
-                        } else if is_itunes_tag(tag, b"keywords") {
-                            let text = read_text(reader, &mut buf, limits)?;
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            itunes.keywords = text
-                                .split(',')
-                                .map(|s| s.trim().to_string())
-                                .filter(|s| !s.is_empty())
-                                .collect();
-                            true
-                        } else if is_itunes_tag(tag, b"type") {
-                            let text = read_text(reader, &mut buf, limits)?;
-                            let itunes =
-                                feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-                            itunes.podcast_type = Some(text);
-                            true
-                        } else if tag.starts_with(b"podcast:guid") {
-                            let text = read_text(reader, &mut buf, limits)?;
-                            let podcast =
-                                feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
-                            podcast.guid = Some(text);
-                            true
-                        } else if tag.starts_with(b"podcast:funding") {
-                            // Parse funding inline to avoid borrow conflicts
-                            let mut url = String::new();
-                            for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"url"
-                                    && let Ok(value) = attr.unescape_value()
-                                {
-                                    url = truncate_to_length(&value, limits.max_attribute_length);
-                                }
-                            }
-                            let message_text = read_text(reader, &mut buf, limits)?;
-                            let message = if message_text.is_empty() {
-                                None
-                            } else {
-                                Some(message_text)
-                            };
-                            let podcast =
-                                feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
-                            podcast.funding.push(PodcastFunding { url, message });
-                            true
-                        } else if let Some(dc_element) = is_dc_tag(tag) {
-                            // Dublin Core namespace
-                            let dc_elem = dc_element.to_string();
-                            let text = read_text(reader, &mut buf, limits)?;
-                            dublin_core::handle_feed_element(&dc_elem, &text, &mut feed.feed);
-                            true
-                        } else if let Some(_content_element) = is_content_tag(tag) {
-                            // Content namespace - typically only used at entry level
-                            skip_element(reader, &mut buf, limits, *depth)?;
-                            true
-                        } else if let Some(_media_element) = is_media_tag(tag) {
-                            // Media RSS namespace - typically only used at entry level
-                            skip_element(reader, &mut buf, limits, *depth)?;
-                            true
-                        } else {
-                            false
-                        };
+                    _ => {
+                        let handled = parse_channel_itunes(
+                            reader, &mut buf, &tag, &attrs, feed, limits, depth,
+                        )? || parse_channel_podcast(
+                            reader, &mut buf, &tag, &attrs, feed, limits,
+                        )? || parse_channel_namespace(
+                            reader, &mut buf, &tag, feed, limits, *depth,
+                        )?;
 
                         if !handled {
                             skip_element(reader, &mut buf, limits, *depth)?;
@@ -370,6 +168,285 @@ fn parse_channel(
     }
 
     Ok(())
+}
+
+/// Parse enclosure element from attributes
+#[inline]
+fn parse_enclosure(attrs: &[(Vec<u8>, String)], limits: &ParserLimits) -> Option<Enclosure> {
+    let mut url = String::new();
+    let mut length = None;
+    let mut enc_type = None;
+
+    for (key, value) in attrs {
+        match key.as_slice() {
+            b"url" => url = truncate_to_length(value, limits.max_attribute_length),
+            b"length" => length = value.parse().ok(),
+            b"type" => enc_type = Some(truncate_to_length(value, limits.max_attribute_length)),
+            _ => {}
+        }
+    }
+
+    if url.is_empty() {
+        None
+    } else {
+        Some(Enclosure {
+            url,
+            length,
+            enclosure_type: enc_type,
+        })
+    }
+}
+
+/// Parse standard RSS 2.0 channel elements
+#[inline]
+fn parse_channel_standard(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+) -> Result<()> {
+    match tag {
+        b"title" => {
+            feed.feed.title = Some(read_text(reader, buf, limits)?);
+        }
+        b"link" => {
+            let link_text = read_text(reader, buf, limits)?;
+            feed.feed
+                .set_alternate_link(link_text, limits.max_links_per_feed);
+        }
+        b"description" => {
+            feed.feed.subtitle = Some(read_text(reader, buf, limits)?);
+        }
+        b"language" => {
+            feed.feed.language = Some(read_text(reader, buf, limits)?);
+        }
+        b"pubDate" => {
+            let text = read_text(reader, buf, limits)?;
+            match parse_date(&text) {
+                Some(dt) => feed.feed.updated = Some(dt),
+                None if !text.is_empty() => {
+                    feed.bozo = true;
+                    feed.bozo_exception = Some("Invalid pubDate format".to_string());
+                }
+                None => {}
+            }
+        }
+        b"managingEditor" => {
+            feed.feed.author = Some(read_text(reader, buf, limits)?);
+        }
+        b"webMaster" => {
+            feed.feed.publisher = Some(read_text(reader, buf, limits)?);
+        }
+        b"generator" => {
+            feed.feed.generator = Some(read_text(reader, buf, limits)?);
+        }
+        b"ttl" => {
+            let text = read_text(reader, buf, limits)?;
+            feed.feed.ttl = text.parse().ok();
+        }
+        b"category" => {
+            let term = read_text(reader, buf, limits)?;
+            feed.feed.tags.try_push_limited(
+                Tag {
+                    term,
+                    scheme: None,
+                    label: None,
+                },
+                limits.max_tags,
+            );
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Parse iTunes namespace tags at channel level
+fn parse_channel_itunes(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    attrs: &[(Vec<u8>, String)],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+    depth: &mut usize,
+) -> Result<bool> {
+    if is_itunes_tag(tag, b"author") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        itunes.author = Some(text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"owner") {
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        if let Ok(owner) = parse_itunes_owner(reader, buf, limits, depth) {
+            itunes.owner = Some(owner);
+        }
+        Ok(true)
+    } else if is_itunes_tag(tag, b"category") {
+        parse_itunes_category(reader, buf, attrs, feed, limits);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"explicit") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        itunes.explicit = parse_explicit(&text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"image") {
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        for (key, value) in attrs {
+            if key.as_slice() == b"href" {
+                itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+        }
+        Ok(true)
+    } else if is_itunes_tag(tag, b"keywords") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        itunes.keywords = text
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        Ok(true)
+    } else if is_itunes_tag(tag, b"type") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        itunes.podcast_type = Some(text);
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Parse iTunes category with potential subcategory
+fn parse_itunes_category(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+) {
+    let mut category_text = String::new();
+    for (key, value) in attrs {
+        if key.as_slice() == b"text" {
+            category_text = truncate_to_length(value, limits.max_attribute_length);
+        }
+    }
+
+    // Parse potential nested subcategory
+    let mut subcategory_text = None;
+    let mut nesting = 0;
+    loop {
+        match reader.read_event_into(buf) {
+            Ok(Event::Start(sub_e)) => {
+                if is_itunes_tag(sub_e.name().as_ref(), b"category") {
+                    nesting += 1;
+                    if nesting == 1 {
+                        for attr in sub_e.attributes().flatten() {
+                            if attr.key.as_ref() == b"text"
+                                && let Ok(value) = attr.unescape_value()
+                            {
+                                subcategory_text =
+                                    Some(value.chars().take(limits.max_attribute_length).collect());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Event::Empty(sub_e)) => {
+                if is_itunes_tag(sub_e.name().as_ref(), b"category") && subcategory_text.is_none() {
+                    for attr in sub_e.attributes().flatten() {
+                        if attr.key.as_ref() == b"text"
+                            && let Ok(value) = attr.unescape_value()
+                        {
+                            subcategory_text =
+                                Some(value.chars().take(limits.max_attribute_length).collect());
+                            break;
+                        }
+                    }
+                }
+            }
+            Ok(Event::End(end_e)) => {
+                if is_itunes_tag(end_e.name().as_ref(), b"category") {
+                    if nesting == 0 {
+                        break;
+                    }
+                    nesting -= 1;
+                }
+            }
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+    itunes.categories.push(ItunesCategory {
+        text: category_text,
+        subcategory: subcategory_text,
+    });
+}
+
+/// Parse Podcast 2.0 namespace tags at channel level
+#[inline]
+fn parse_channel_podcast(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    attrs: &[(Vec<u8>, String)],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+) -> Result<bool> {
+    if tag.starts_with(b"podcast:guid") {
+        let text = read_text(reader, buf, limits)?;
+        let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+        podcast.guid = Some(text);
+        Ok(true)
+    } else if tag.starts_with(b"podcast:funding") {
+        let mut url = String::new();
+        for (key, value) in attrs {
+            if key.as_slice() == b"url" {
+                url = truncate_to_length(value, limits.max_attribute_length);
+            }
+        }
+        let message_text = read_text(reader, buf, limits)?;
+        let message = if message_text.is_empty() {
+            None
+        } else {
+            Some(message_text)
+        };
+        let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+        podcast.funding.push(PodcastFunding { url, message });
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Parse Dublin Core, Content, and Media RSS namespace tags at channel level
+#[inline]
+fn parse_channel_namespace(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+    depth: usize,
+) -> Result<bool> {
+    if let Some(dc_element) = is_dc_tag(tag) {
+        let dc_elem = dc_element.to_string();
+        let text = read_text(reader, buf, limits)?;
+        dublin_core::handle_feed_element(&dc_elem, &text, &mut feed.feed);
+        Ok(true)
+    } else if let Some(_content_element) = is_content_tag(tag) {
+        skip_element(reader, buf, limits, depth)?;
+        Ok(true)
+    } else if let Some(_media_element) = is_media_tag(tag) {
+        skip_element(reader, buf, limits, depth)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Parse <item> element (entry)
@@ -392,296 +469,47 @@ fn parse_item(
                 *depth += 1;
                 check_depth(*depth, limits.max_nesting_depth)?;
 
+                let tag = e.name().as_ref().to_vec();
+
+                // Clone attributes to owned values to avoid lifetime issues
+                let attrs: Vec<(Vec<u8>, String)> = e
+                    .attributes()
+                    .flatten()
+                    .filter_map(|attr| {
+                        attr.unescape_value()
+                            .ok()
+                            .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
+                    })
+                    .collect();
+
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
-                match e.name().as_ref() {
-                    b"title" => {
-                        entry.title = Some(read_text(reader, buf, limits)?);
-                    }
-                    b"link" => {
-                        let link_text = read_text(reader, buf, limits)?;
-                        entry.link = Some(link_text.clone());
-                        entry.links.try_push_limited(
-                            Link {
-                                href: link_text,
-                                rel: Some("alternate".to_string()),
-                                ..Default::default()
-                            },
-                            limits.max_links_per_entry,
-                        );
-                    }
-                    b"description" => {
-                        let desc = read_text(reader, buf, limits)?;
-                        entry.summary = Some(desc.clone());
-                        entry.summary_detail = Some(TextConstruct {
-                            value: desc,
-                            content_type: TextType::Html,
-                            language: None,
-                            base: None,
-                        });
-                    }
-                    b"guid" => {
-                        entry.id = Some(read_text(reader, buf, limits)?);
-                    }
-                    b"pubDate" => {
-                        let text = read_text(reader, buf, limits)?;
-                        entry.published = parse_date(&text);
-                    }
-                    b"author" => {
-                        entry.author = Some(read_text(reader, buf, limits)?);
-                    }
-                    b"category" => {
-                        let term = read_text(reader, buf, limits)?;
-                        entry.tags.try_push_limited(
-                            Tag {
-                                term,
-                                scheme: None,
-                                label: None,
-                            },
-                            limits.max_tags,
-                        );
+                match tag.as_slice() {
+                    b"title" | b"link" | b"description" | b"guid" | b"pubDate" | b"author"
+                    | b"category" | b"comments" => {
+                        parse_item_standard(reader, buf, &tag, &mut entry, limits)?;
                     }
                     b"enclosure" => {
-                        if let Some(enclosure) = parse_enclosure(e, limits) {
+                        if let Some(enclosure) = parse_enclosure(&attrs, limits) {
                             entry
                                 .enclosures
                                 .try_push_limited(enclosure, limits.max_enclosures);
                         }
                         skip_element(reader, buf, limits, *depth)?;
                     }
-                    b"comments" => {
-                        entry.comments = Some(read_text(reader, buf, limits)?);
-                    }
                     b"source" => {
                         if let Ok(source) = parse_source(reader, buf, limits, depth) {
                             entry.source = Some(source);
                         }
                     }
-                    tag => {
-                        // Check for iTunes and Podcast 2.0 namespace tags
-                        let handled = if is_itunes_tag(tag, b"title") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.title = Some(text);
-                            true
-                        } else if is_itunes_tag(tag, b"author") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.author = Some(text);
-                            true
-                        } else if is_itunes_tag(tag, b"duration") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.duration = parse_duration(&text);
-                            true
-                        } else if is_itunes_tag(tag, b"explicit") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.explicit = parse_explicit(&text);
-                            true
-                        } else if is_itunes_tag(tag, b"image") {
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"href"
-                                    && let Ok(value) = attr.unescape_value()
-                                {
-                                    itunes.image = Some(truncate_to_length(
-                                        &value,
-                                        limits.max_attribute_length,
-                                    ));
-                                }
-                            }
-                            // NOTE: Don't call skip_element - itunes:image is typically self-closing
-                            true
-                        } else if is_itunes_tag(tag, b"episode") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.episode = text.parse().ok();
-                            true
-                        } else if is_itunes_tag(tag, b"season") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.season = text.parse().ok();
-                            true
-                        } else if is_itunes_tag(tag, b"episodeType") {
-                            let text = read_text(reader, buf, limits)?;
-                            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-                            itunes.episode_type = Some(text);
-                            true
-                        } else if tag.starts_with(b"podcast:transcript") {
-                            // Parse Podcast 2.0 transcript inline
-                            let mut url = String::new();
-                            let mut transcript_type = None;
-                            let mut language = None;
-                            let mut rel = None;
-                            for attr in e.attributes().flatten() {
-                                match attr.key.as_ref() {
-                                    b"url" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            url = value
-                                                .chars()
-                                                .take(limits.max_attribute_length)
-                                                .collect();
-                                        }
-                                    }
-                                    b"type" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            transcript_type = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    b"language" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            language = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    b"rel" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            rel = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            if !url.is_empty() {
-                                entry.podcast_transcripts.push(PodcastTranscript {
-                                    url,
-                                    transcript_type,
-                                    language,
-                                    rel,
-                                });
-                            }
-                            if !is_empty {
-                                skip_element(reader, buf, limits, *depth)?;
-                            }
-                            true
-                        } else if tag.starts_with(b"podcast:person") {
-                            // Parse Podcast 2.0 person inline
-                            let mut role = None;
-                            let mut group = None;
-                            let mut img = None;
-                            let mut href = None;
-                            for attr in e.attributes().flatten() {
-                                match attr.key.as_ref() {
-                                    b"role" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            role = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    b"group" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            group = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    b"img" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            img = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    b"href" => {
-                                        if let Ok(value) = attr.unescape_value() {
-                                            href = Some(
-                                                value
-                                                    .chars()
-                                                    .take(limits.max_attribute_length)
-                                                    .collect(),
-                                            );
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            let name = read_text(reader, buf, limits)?;
-                            if !name.is_empty() {
-                                entry.podcast_persons.push(PodcastPerson {
-                                    name,
-                                    role,
-                                    group,
-                                    img,
-                                    href,
-                                });
-                            }
-                            true
-                        } else if let Some(dc_element) = is_dc_tag(tag) {
-                            // Dublin Core namespace
-                            let dc_elem = dc_element.to_string();
-                            let text = read_text(reader, buf, limits)?;
-                            dublin_core::handle_entry_element(&dc_elem, &text, &mut entry);
-                            true
-                        } else if let Some(content_element) = is_content_tag(tag) {
-                            // Content namespace
-                            let content_elem = content_element.to_string();
-                            let text = read_text(reader, buf, limits)?;
-                            content::handle_entry_element(&content_elem, &text, &mut entry);
-                            true
-                        } else if let Some(media_element) = is_media_tag(tag) {
-                            // Media RSS namespace - handle both text elements and attribute-based elements
-                            if media_element == "thumbnail" {
-                                // media:thumbnail has attributes
-                                if let Some(thumbnail) = MediaThumbnail::from_attributes(
-                                    e.attributes().flatten(),
-                                    limits.max_attribute_length,
-                                ) {
-                                    entry
-                                        .media_thumbnails
-                                        .try_push_limited(thumbnail, limits.max_enclosures);
-                                }
-                                // Don't call skip_element if it's self-closing
-                                if !is_empty {
-                                    skip_element(reader, buf, limits, *depth)?;
-                                }
-                            } else if media_element == "content" {
-                                // media:content has attributes
-                                if let Some(media) = MediaContent::from_attributes(
-                                    e.attributes().flatten(),
-                                    limits.max_attribute_length,
-                                ) {
-                                    entry
-                                        .media_content
-                                        .try_push_limited(media, limits.max_enclosures);
-                                }
-                                // Don't call skip_element if it's self-closing
-                                if !is_empty {
-                                    skip_element(reader, buf, limits, *depth)?;
-                                }
-                            } else {
-                                // Other media elements (title, description, keywords, category)
-                                let media_elem = media_element.to_string();
-                                let text = read_text(reader, buf, limits)?;
-                                media_rss::handle_entry_element(&media_elem, &text, &mut entry);
-                            }
-                            true
-                        } else {
-                            false
-                        };
+                    _ => {
+                        let handled =
+                            parse_item_itunes(reader, buf, &tag, &attrs, &mut entry, limits)?
+                                || parse_item_podcast(
+                                    reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
+                                )?
+                                || parse_item_namespace(
+                                    reader, buf, &tag, &attrs, &mut entry, limits, is_empty, *depth,
+                                )?;
 
                         if !handled {
                             skip_element(reader, buf, limits, *depth)?;
@@ -701,6 +529,368 @@ fn parse_item(
     }
 
     Ok(entry)
+}
+
+/// Parse standard RSS 2.0 item elements
+#[inline]
+fn parse_item_standard(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+) -> Result<()> {
+    match tag {
+        b"title" => {
+            entry.title = Some(read_text(reader, buf, limits)?);
+        }
+        b"link" => {
+            let link_text = read_text(reader, buf, limits)?;
+            entry.link = Some(link_text.clone());
+            entry.links.try_push_limited(
+                Link {
+                    href: link_text,
+                    rel: Some("alternate".to_string()),
+                    ..Default::default()
+                },
+                limits.max_links_per_entry,
+            );
+        }
+        b"description" => {
+            let desc = read_text(reader, buf, limits)?;
+            entry.summary = Some(desc.clone());
+            entry.summary_detail = Some(TextConstruct {
+                value: desc,
+                content_type: TextType::Html,
+                language: None,
+                base: None,
+            });
+        }
+        b"guid" => {
+            entry.id = Some(read_text(reader, buf, limits)?);
+        }
+        b"pubDate" => {
+            let text = read_text(reader, buf, limits)?;
+            entry.published = parse_date(&text);
+        }
+        b"author" => {
+            entry.author = Some(read_text(reader, buf, limits)?);
+        }
+        b"category" => {
+            let term = read_text(reader, buf, limits)?;
+            entry.tags.try_push_limited(
+                Tag {
+                    term,
+                    scheme: None,
+                    label: None,
+                },
+                limits.max_tags,
+            );
+        }
+        b"comments" => {
+            entry.comments = Some(read_text(reader, buf, limits)?);
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Parse iTunes namespace tags at item level
+#[inline]
+fn parse_item_itunes(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+) -> Result<bool> {
+    if is_itunes_tag(tag, b"title") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.title = Some(text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"author") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.author = Some(text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"duration") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.duration = parse_duration(&text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"explicit") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.explicit = parse_explicit(&text);
+        Ok(true)
+    } else if is_itunes_tag(tag, b"image") {
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        for (key, value) in attrs {
+            if key.as_slice() == b"href" {
+                itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+        }
+        Ok(true)
+    } else if is_itunes_tag(tag, b"episode") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.episode = text.parse().ok();
+        Ok(true)
+    } else if is_itunes_tag(tag, b"season") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.season = text.parse().ok();
+        Ok(true)
+    } else if is_itunes_tag(tag, b"episodeType") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        itunes.episode_type = Some(text);
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Parse Podcast 2.0 namespace tags at item level
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn parse_item_podcast(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<bool> {
+    if tag.starts_with(b"podcast:transcript") {
+        parse_podcast_transcript(reader, buf, attrs, entry, limits, is_empty, depth)?;
+        Ok(true)
+    } else if tag.starts_with(b"podcast:person") {
+        parse_podcast_person(reader, buf, attrs, entry, limits)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Parse Podcast 2.0 transcript element
+fn parse_podcast_transcript(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<()> {
+    let mut url = String::new();
+    let mut transcript_type = None;
+    let mut language = None;
+    let mut rel = None;
+
+    for (key, value) in attrs {
+        match key.as_slice() {
+            b"url" => {
+                url = truncate_to_length(value, limits.max_attribute_length);
+            }
+            b"type" => {
+                transcript_type = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            b"language" => {
+                language = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            b"rel" => {
+                rel = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            _ => {}
+        }
+    }
+
+    if !url.is_empty() {
+        entry.podcast_transcripts.push(PodcastTranscript {
+            url,
+            transcript_type,
+            language,
+            rel,
+        });
+    }
+
+    if !is_empty {
+        skip_element(reader, buf, limits, depth)?;
+    }
+
+    Ok(())
+}
+
+/// Parse Podcast 2.0 person element
+fn parse_podcast_person(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+) -> Result<()> {
+    let mut role = None;
+    let mut group = None;
+    let mut img = None;
+    let mut href = None;
+
+    for (key, value) in attrs {
+        match key.as_slice() {
+            b"role" => {
+                role = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            b"group" => {
+                group = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            b"img" => {
+                img = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            b"href" => {
+                href = Some(truncate_to_length(value, limits.max_attribute_length));
+            }
+            _ => {}
+        }
+    }
+
+    let name = read_text(reader, buf, limits)?;
+    if !name.is_empty() {
+        entry.podcast_persons.push(PodcastPerson {
+            name,
+            role,
+            group,
+            img,
+            href,
+        });
+    }
+
+    Ok(())
+}
+
+/// Parse Dublin Core, Content, and Media RSS namespace tags at item level
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn parse_item_namespace(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    tag: &[u8],
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<bool> {
+    if let Some(dc_element) = is_dc_tag(tag) {
+        let dc_elem = dc_element.to_string();
+        let text = read_text(reader, buf, limits)?;
+        dublin_core::handle_entry_element(&dc_elem, &text, entry);
+        Ok(true)
+    } else if let Some(content_element) = is_content_tag(tag) {
+        let content_elem = content_element.to_string();
+        let text = read_text(reader, buf, limits)?;
+        content::handle_entry_element(&content_elem, &text, entry);
+        Ok(true)
+    } else if let Some(media_element) = is_media_tag(tag) {
+        parse_item_media(
+            reader,
+            buf,
+            media_element,
+            attrs,
+            entry,
+            limits,
+            is_empty,
+            depth,
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Parse Media RSS namespace elements
+#[allow(clippy::too_many_arguments)]
+fn parse_item_media(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    media_element: &str,
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<()> {
+    match media_element {
+        "thumbnail" => {
+            // Extract thumbnail attributes
+            let mut url = String::new();
+            let mut width = None;
+            let mut height = None;
+            for (key, value) in attrs {
+                match key.as_slice() {
+                    b"url" => url = truncate_to_length(value, limits.max_attribute_length),
+                    b"width" => width = value.parse().ok(),
+                    b"height" => height = value.parse().ok(),
+                    _ => {}
+                }
+            }
+            if !url.is_empty() {
+                entry
+                    .media_thumbnails
+                    .try_push_limited(MediaThumbnail { url, width, height }, limits.max_enclosures);
+            }
+            if !is_empty {
+                skip_element(reader, buf, limits, depth)?;
+            }
+        }
+        "content" => {
+            // Extract content attributes
+            let mut url = String::new();
+            let mut content_type = None;
+            let mut filesize = None;
+            let mut duration = None;
+            let mut width = None;
+            let mut height = None;
+            for (key, value) in attrs {
+                match key.as_slice() {
+                    b"url" => url = truncate_to_length(value, limits.max_attribute_length),
+                    b"type" => {
+                        content_type = Some(truncate_to_length(value, limits.max_attribute_length));
+                    }
+                    b"fileSize" => filesize = value.parse().ok(),
+                    b"duration" => duration = value.parse().ok(),
+                    b"width" => width = value.parse().ok(),
+                    b"height" => height = value.parse().ok(),
+                    _ => {}
+                }
+            }
+            if !url.is_empty() {
+                entry.media_content.try_push_limited(
+                    MediaContent {
+                        url,
+                        content_type,
+                        filesize,
+                        width,
+                        height,
+                        duration,
+                    },
+                    limits.max_enclosures,
+                );
+            }
+            if !is_empty {
+                skip_element(reader, buf, limits, depth)?;
+            }
+        }
+        _ => {
+            let media_elem = media_element.to_string();
+            let text = read_text(reader, buf, limits)?;
+            media_rss::handle_entry_element(&media_elem, &text, entry);
+        }
+    }
+    Ok(())
 }
 
 /// Parse <image> element
@@ -762,11 +952,6 @@ fn parse_image(
         height,
         description,
     })
-}
-
-#[inline]
-fn parse_enclosure(e: &quick_xml::events::BytesStart, limits: &ParserLimits) -> Option<Enclosure> {
-    Enclosure::from_attributes(e.attributes().flatten(), limits.max_attribute_length)
 }
 
 /// Parse <source> element
