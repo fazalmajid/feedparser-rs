@@ -1,0 +1,10 @@
+# Cargo configuration for build optimization
+# https://doc.rust-lang.org/cargo/reference/config.html
+
+# Use lld-link on Windows for faster linking
+# lld-link is part of LLVM and significantly faster than MSVC link.exe
+[target.x86_64-pc-windows-msvc]
+linker = "lld-link"
+
+[target.aarch64-pc-windows-msvc]
+linker = "lld-link"
