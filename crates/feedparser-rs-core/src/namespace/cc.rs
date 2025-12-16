@@ -14,10 +14,10 @@
 //! Creative Commons: <http://creativecommons.org/ns>
 //! Legacy: <http://backend.userland.com/creativeCommonsRssModule>
 
+use crate::Entry;
 use crate::limits::ParserLimits;
 use crate::types::generics::LimitedCollectionExt;
 use crate::types::{FeedMeta, Link};
-use crate::Entry;
 
 /// Creative Commons namespace URI (modern)
 pub const CC: &str = "http://creativecommons.org/ns#";
@@ -166,17 +166,15 @@ mod tests {
 
     #[test]
     fn test_extract_license_url_from_text() {
-        let url = extract_license_url(&[], "http://creativecommons.org/licenses/by-nc/4.0/").unwrap();
+        let url =
+            extract_license_url(&[], "http://creativecommons.org/licenses/by-nc/4.0/").unwrap();
         assert_eq!(url, "http://creativecommons.org/licenses/by-nc/4.0/");
     }
 
     #[test]
     fn test_extract_license_url_from_text_with_whitespace() {
-        let url = extract_license_url(
-            &[],
-            "  http://creativecommons.org/licenses/by-nd/4.0/  ",
-        )
-        .unwrap();
+        let url =
+            extract_license_url(&[], "  http://creativecommons.org/licenses/by-nd/4.0/  ").unwrap();
         assert_eq!(url, "http://creativecommons.org/licenses/by-nd/4.0/");
     }
 
@@ -187,11 +185,8 @@ mod tests {
             b"rdf:resource".to_vec(),
             "http://creativecommons.org/licenses/by/4.0/".to_string(),
         )];
-        let url = extract_license_url(
-            &attrs,
-            "http://creativecommons.org/licenses/by-sa/4.0/",
-        )
-        .unwrap();
+        let url =
+            extract_license_url(&attrs, "http://creativecommons.org/licenses/by-sa/4.0/").unwrap();
         assert_eq!(url, "http://creativecommons.org/licenses/by/4.0/");
     }
 

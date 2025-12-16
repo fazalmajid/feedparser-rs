@@ -208,7 +208,10 @@ mod tests {
     fn test_options_clone() {
         let options1 = ParseOptions::default();
         let options2 = options1.clone();
-        assert_eq!(options1.resolve_relative_uris, options2.resolve_relative_uris);
+        assert_eq!(
+            options1.resolve_relative_uris,
+            options2.resolve_relative_uris
+        );
         assert_eq!(options1.sanitize_html, options2.sanitize_html);
     }
 

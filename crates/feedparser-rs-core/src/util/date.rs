@@ -13,7 +13,7 @@ const DATE_FORMATS: &[&str] = &[
     "%Y-%m-%dT%H:%M:%SZ",      // 2024-12-14T10:30:45Z
     "%Y-%m-%dT%H:%M:%S",       // 2024-12-14T10:30:45 (no timezone)
     "%Y-%m-%d %H:%M:%S",       // 2024-12-14 10:30:45
-    "%Y-%m-%d",             // 2024-12-14
+    "%Y-%m-%d",                // 2024-12-14
     // W3C Date-Time variants
     "%Y-%m-%d %H:%M:%S%:z", // 2024-12-14 10:30:45+00:00
     "%Y/%m/%d %H:%M:%S",    // 2024/12/14 10:30:45
@@ -103,10 +103,7 @@ pub fn parse_date(input: &str) -> Option<DateTime<Utc>> {
     // Special handling for year-month format (e.g., "2024-12")
     if input.len() == 7
         && input.chars().nth(4) == Some('-')
-        && let (Ok(year), Ok(month)) = (
-            input[..4].parse::<i32>(),
-            input[5..7].parse::<u32>(),
-        )
+        && let (Ok(year), Ok(month)) = (input[..4].parse::<i32>(), input[5..7].parse::<u32>())
         && (1000..=9999).contains(&year)
         && (1..=12).contains(&month)
     {
@@ -329,14 +326,10 @@ mod tests {
 
     #[test]
     fn test_all_new_formats() {
-        let test_cases = vec![
-            ("2024", 2024, 1, 1),
-            ("2024-12", 2024, 12, 1),
-        ];
+        let test_cases = vec![("2024", 2024, 1, 1), ("2024-12", 2024, 12, 1)];
 
         for (date_str, year, month, day) in test_cases {
-            let dt = parse_date(date_str)
-                .unwrap_or_else(|| panic!("Failed to parse: {date_str}"));
+            let dt = parse_date(date_str).unwrap_or_else(|| panic!("Failed to parse: {date_str}"));
             assert_eq!(dt.year(), year, "Year mismatch for: {date_str}");
             assert_eq!(dt.month(), month, "Month mismatch for: {date_str}");
             assert_eq!(dt.day(), day, "Day mismatch for: {date_str}");
