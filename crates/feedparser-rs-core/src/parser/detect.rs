@@ -24,7 +24,7 @@ const MAX_JSON_DETECTION_SIZE: usize = 1024 * 1024; // 1MB
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::{detect_format, FeedVersion};
+/// use feedparser_rs::{detect_format, FeedVersion};
 ///
 /// let rss = br#"<?xml version="1.0"?><rss version="2.0"></rss>"#;
 /// assert_eq!(detect_format(rss), FeedVersion::Rss20);

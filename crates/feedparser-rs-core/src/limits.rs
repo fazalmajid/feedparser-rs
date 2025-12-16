@@ -8,7 +8,7 @@
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::ParserLimits;
+/// use feedparser_rs::ParserLimits;
 ///
 /// let limits = ParserLimits::default();
 /// assert_eq!(limits.max_entries, 10_000);
@@ -142,7 +142,7 @@ impl ParserLimits {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::ParserLimits;
+    /// use feedparser_rs::ParserLimits;
     ///
     /// let limits = ParserLimits::strict();
     /// assert_eq!(limits.max_entries, 1_000);
@@ -174,7 +174,7 @@ impl ParserLimits {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::ParserLimits;
+    /// use feedparser_rs::ParserLimits;
     ///
     /// let limits = ParserLimits::permissive();
     /// assert_eq!(limits.max_entries, 100_000);

@@ -1,6 +1,6 @@
 //! Integration tests for namespace parsing (Dublin Core, Content, Media RSS)
 
-use feedparser_rs_core::parse;
+use feedparser_rs::parse;
 
 #[test]
 fn test_rss_with_dublin_core() {

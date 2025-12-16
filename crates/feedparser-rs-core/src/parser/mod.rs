@@ -24,7 +24,7 @@ pub use detect::detect_format;
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::parse;
+/// use feedparser_rs::parse;
 ///
 /// let xml = r#"
 ///     <?xml version="1.0"?>
@@ -49,7 +49,7 @@ pub fn parse(data: &[u8]) -> Result<ParsedFeed> {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::{parse_with_limits, ParserLimits};
+/// use feedparser_rs::{parse_with_limits, ParserLimits};
 ///
 /// let xml = b"<rss version=\"2.0\"><channel><title>Test</title></channel></rss>";
 /// let limits = ParserLimits::strict();

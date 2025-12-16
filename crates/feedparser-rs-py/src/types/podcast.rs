@@ -1,4 +1,4 @@
-use feedparser_rs_core::{
+use feedparser_rs::{
     ItunesCategory as CoreItunesCategory, ItunesEntryMeta as CoreItunesEntryMeta,
     ItunesFeedMeta as CoreItunesFeedMeta, ItunesOwner as CoreItunesOwner,
     PodcastFunding as CorePodcastFunding, PodcastMeta as CorePodcastMeta,

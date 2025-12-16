@@ -1,4 +1,4 @@
-use feedparser_rs_core::ParsedFeed as CoreParsedFeed;
+use feedparser_rs::ParsedFeed as CoreParsedFeed;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 

@@ -23,7 +23,7 @@ use encoding_rs::{Encoding, UTF_8};
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::encoding::detect_encoding;
+/// use feedparser_rs::util::encoding::detect_encoding;
 ///
 /// // UTF-8 with BOM
 /// let data = b"\xEF\xBB\xBF<?xml version=\"1.0\"?>";
@@ -102,7 +102,7 @@ fn normalize_encoding_name(name: &str) -> Option<&'static str> {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::encoding::convert_to_utf8;
+/// use feedparser_rs::util::encoding::convert_to_utf8;
 ///
 /// let latin1 = b"\xE9"; // é in ISO-8859-1
 /// let utf8 = convert_to_utf8(latin1, "iso-8859-1").unwrap();
@@ -132,7 +132,7 @@ pub fn convert_to_utf8(data: &[u8], encoding_name: &str) -> Result<String, Strin
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::encoding::detect_and_convert;
+/// use feedparser_rs::util::encoding::detect_and_convert;
 ///
 /// let data = b"<?xml version=\"1.0\"?><root>Test</root>";
 /// let (utf8, detected_encoding) = detect_and_convert(data).unwrap();

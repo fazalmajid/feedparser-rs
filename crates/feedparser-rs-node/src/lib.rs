@@ -4,7 +4,7 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::collections::HashMap;
 
-use feedparser_rs_core::{
+use feedparser_rs::{
     self as core, Content as CoreContent, Enclosure as CoreEnclosure, Entry as CoreEntry,
     FeedMeta as CoreFeedMeta, Generator as CoreGenerator, Image as CoreImage, Link as CoreLink,
     ParsedFeed as CoreParsedFeed, ParserLimits, Person as CorePerson,

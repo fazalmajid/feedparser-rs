@@ -6,7 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::ItunesFeedMeta;
+/// use feedparser_rs::ItunesFeedMeta;
 ///
 /// let mut itunes = ItunesFeedMeta::default();
 /// itunes.author = Some("John Doe".to_string());
@@ -40,7 +40,7 @@ pub struct ItunesFeedMeta {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::ItunesEntryMeta;
+/// use feedparser_rs::ItunesEntryMeta;
 ///
 /// let mut episode = ItunesEntryMeta::default();
 /// episode.duration = Some(3600); // 1 hour
@@ -79,7 +79,7 @@ pub struct ItunesEntryMeta {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::ItunesOwner;
+/// use feedparser_rs::ItunesOwner;
 ///
 /// let owner = ItunesOwner {
 ///     name: Some("Jane Doe".to_string()),
@@ -103,7 +103,7 @@ pub struct ItunesOwner {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::ItunesCategory;
+/// use feedparser_rs::ItunesCategory;
 ///
 /// let category = ItunesCategory {
 ///     text: "Technology".to_string(),
@@ -127,7 +127,7 @@ pub struct ItunesCategory {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::PodcastMeta;
+/// use feedparser_rs::PodcastMeta;
 ///
 /// let mut podcast = PodcastMeta::default();
 /// podcast.guid = Some("9b024349-ccf0-5f69-a609-6b82873eab3c".to_string());
@@ -153,7 +153,7 @@ pub struct PodcastMeta {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::PodcastTranscript;
+/// use feedparser_rs::PodcastTranscript;
 ///
 /// let transcript = PodcastTranscript {
 ///     url: "https://example.com/transcript.txt".to_string(),
@@ -183,7 +183,7 @@ pub struct PodcastTranscript {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::PodcastFunding;
+/// use feedparser_rs::PodcastFunding;
 ///
 /// let funding = PodcastFunding {
 ///     url: "https://example.com/donate".to_string(),
@@ -207,7 +207,7 @@ pub struct PodcastFunding {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::PodcastPerson;
+/// use feedparser_rs::PodcastPerson;
 ///
 /// let host = PodcastPerson {
 ///     name: "John Doe".to_string(),
@@ -248,7 +248,7 @@ pub struct PodcastPerson {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::parse_duration;
+/// use feedparser_rs::parse_duration;
 ///
 /// assert_eq!(parse_duration("3600"), Some(3600));
 /// assert_eq!(parse_duration("60:30"), Some(3630));
@@ -301,7 +301,7 @@ pub fn parse_duration(s: &str) -> Option<u32> {
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::parse_explicit;
+/// use feedparser_rs::parse_explicit;
 ///
 /// assert_eq!(parse_explicit("yes"), Some(true));
 /// assert_eq!(parse_explicit("YES"), Some(true));

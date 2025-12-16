@@ -1,4 +1,4 @@
-use feedparser_rs_core::FeedMeta as CoreFeedMeta;
+use feedparser_rs::FeedMeta as CoreFeedMeta;
 use pyo3::prelude::*;
 
 use super::common::{PyGenerator, PyImage, PyLink, PyPerson, PyTag, PyTextConstruct};

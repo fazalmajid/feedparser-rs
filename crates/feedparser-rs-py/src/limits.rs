@@ -1,4 +1,4 @@
-use feedparser_rs_core::ParserLimits as CoreParserLimits;
+use feedparser_rs::ParserLimits as CoreParserLimits;
 use pyo3::prelude::*;
 
 /// Resource limits for feed parsing (DoS protection)

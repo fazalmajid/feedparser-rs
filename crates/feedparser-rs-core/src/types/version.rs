@@ -32,7 +32,7 @@ impl FeedVersion {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::FeedVersion;
+    /// use feedparser_rs::FeedVersion;
     ///
     /// assert_eq!(FeedVersion::Rss20.as_str(), "rss20");
     /// assert_eq!(FeedVersion::Atom10.as_str(), "atom10");

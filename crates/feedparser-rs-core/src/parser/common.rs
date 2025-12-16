@@ -32,7 +32,7 @@ pub const TEXT_BUFFER_CAPACITY: usize = 256;
 /// # Examples
 ///
 /// ```ignore
-/// use feedparser_rs_core::parser::common::new_event_buffer;
+/// use feedparser_rs::parser::common::new_event_buffer;
 ///
 /// let mut buf = new_event_buffer();
 /// assert!(buf.capacity() >= 1024);
@@ -57,7 +57,7 @@ pub fn new_event_buffer() -> Vec<u8> {
 /// # Examples
 ///
 /// ```ignore
-/// use feedparser_rs_core::parser::common::new_text_buffer;
+/// use feedparser_rs::parser::common::new_text_buffer;
 ///
 /// let mut text = new_text_buffer();
 /// assert!(text.capacity() >= 256);

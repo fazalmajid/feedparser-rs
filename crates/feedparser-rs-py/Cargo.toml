@@ -15,10 +15,10 @@ name = "feedparser_rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-feedparser-rs-core = { path = "../feedparser-rs-core" }
+feedparser-rs = { path = "../feedparser-rs-core" }
 pyo3 = { workspace = true, features = ["extension-module", "chrono"] }
 chrono = { workspace = true, features = ["clock"] }
 
 [features]
 default = ["http"]
-http = ["feedparser-rs-core/http"]
+http = ["feedparser-rs/http"]

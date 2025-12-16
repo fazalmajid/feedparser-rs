@@ -11,7 +11,7 @@
 /// # Examples
 ///
 /// ```
-/// use feedparser_rs_core::util::text::bytes_to_string;
+/// use feedparser_rs::util::text::bytes_to_string;
 ///
 /// let valid_utf8 = b"Hello, world!";
 /// assert_eq!(bytes_to_string(valid_utf8), "Hello, world!");

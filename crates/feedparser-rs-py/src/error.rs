@@ -1,4 +1,4 @@
-use feedparser_rs_core::FeedError;
+use feedparser_rs::FeedError;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 

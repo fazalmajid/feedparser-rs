@@ -4,7 +4,7 @@
     clippy::single_match_else
 )]
 
-use feedparser_rs_core::{FeedVersion, detect_format, parse};
+use feedparser_rs::{FeedVersion, detect_format, parse};
 
 /// Helper function to load test fixtures
 fn load_fixture(path: &str) -> Vec<u8> {
@@ -15,7 +15,7 @@ fn load_fixture(path: &str) -> Vec<u8> {
 }
 
 /// Helper to assert basic feed validity
-fn assert_feed_valid(result: &feedparser_rs_core::ParsedFeed) {
+fn assert_feed_valid(result: &feedparser_rs::ParsedFeed) {
     // Currently stubs return empty feeds, so we just check it doesn't panic
     // Phase 2: Add real assertions here
     assert!(result.version == FeedVersion::Unknown || !result.bozo);
@@ -113,7 +113,7 @@ fn test_parse_invalid_xml() {
 
 #[test]
 fn test_capacity_constructors() {
-    use feedparser_rs_core::{Entry, FeedMeta, ParsedFeed};
+    use feedparser_rs::{Entry, FeedMeta, ParsedFeed};
 
     // Test ParsedFeed::with_capacity
     let feed = ParsedFeed::with_capacity(100);

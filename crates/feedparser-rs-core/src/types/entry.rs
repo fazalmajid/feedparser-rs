@@ -88,7 +88,7 @@ impl Entry {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::Entry;
+    /// use feedparser_rs::Entry;
     ///
     /// let entry = Entry::with_capacity();
     /// ```
@@ -115,7 +115,7 @@ impl Entry {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{Entry, TextConstruct};
+    /// use feedparser_rs::{Entry, TextConstruct};
     ///
     /// let mut entry = Entry::default();
     /// entry.set_title(TextConstruct::text("Great Article"));
@@ -132,7 +132,7 @@ impl Entry {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{Entry, TextConstruct};
+    /// use feedparser_rs::{Entry, TextConstruct};
     ///
     /// let mut entry = Entry::default();
     /// entry.set_summary(TextConstruct::text("A summary"));
@@ -149,7 +149,7 @@ impl Entry {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{Entry, Person};
+    /// use feedparser_rs::{Entry, Person};
     ///
     /// let mut entry = Entry::default();
     /// entry.set_author(Person::from_name("Jane Doe"));
@@ -166,7 +166,7 @@ impl Entry {
     /// # Examples
     ///
     /// ```
-    /// use feedparser_rs_core::{Entry, Person};
+    /// use feedparser_rs::{Entry, Person};
     ///
     /// let mut entry = Entry::default();
     /// entry.set_publisher(Person::from_name("ACME Corp"));
