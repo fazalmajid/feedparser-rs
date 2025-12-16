@@ -1102,4 +1102,213 @@ mod tests {
             Some("HTML <b>content</b> here")
         );
     }
+
+    #[test]
+    fn test_parse_rss_with_image() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <image>
+                    <url>http://example.com/logo.png</url>
+                    <title>Example Logo</title>
+                    <link>http://example.com</link>
+                    <width>144</width>
+                    <height>36</height>
+                </image>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(feed.feed.image.is_some());
+        let img = feed.feed.image.as_ref().unwrap();
+        assert_eq!(img.url, "http://example.com/logo.png");
+        assert_eq!(img.title.as_deref(), Some("Example Logo"));
+        assert_eq!(img.width, Some(144));
+        assert_eq!(img.height, Some(36));
+    }
+
+    #[test]
+    fn test_parse_rss_with_author() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <item>
+                    <author>john@example.com (John Doe)</author>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.entries[0].author.as_deref(), Some("john@example.com (John Doe)"));
+    }
+
+    #[test]
+    fn test_parse_rss_with_comments() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <item>
+                    <comments>http://example.com/comments</comments>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.entries[0].comments.as_deref(), Some("http://example.com/comments"));
+    }
+
+    #[test]
+    fn test_parse_rss_with_guid_permalink() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <item>
+                    <guid isPermaLink="true">http://example.com/1</guid>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.entries[0].id.as_deref(), Some("http://example.com/1"));
+    }
+
+    #[test]
+    fn test_parse_rss_with_ttl() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <ttl>60</ttl>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.feed.ttl, Some(60));
+    }
+
+    #[test]
+    fn test_parse_rss_with_language() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <language>en-US</language>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.feed.language.as_deref(), Some("en-US"));
+    }
+
+    #[test]
+    fn test_parse_rss_with_generator() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <generator>WordPress 6.0</generator>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.feed.generator.as_deref(), Some("WordPress 6.0"));
+    }
+
+    #[test]
+    fn test_parse_rss_with_limits() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <item><title>1</title></item>
+                <item><title>2</title></item>
+                <item><title>3</title></item>
+                <item><title>4</title></item>
+            </channel>
+        </rss>"#;
+
+        let limits = ParserLimits {
+            max_entries: 2,
+            ..Default::default()
+        };
+        let feed = parse_rss20_with_limits(xml, limits).unwrap();
+        assert_eq!(feed.entries.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_rss_multiple_categories_feed_level() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <category>Technology</category>
+                <category>News</category>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.feed.tags.len(), 2);
+        assert_eq!(feed.feed.tags[0].term, "Technology");
+        assert_eq!(feed.feed.tags[1].term, "News");
+    }
+
+    #[test]
+    fn test_parse_rss_with_source() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <item>
+                    <source>
+                        <title>Source Feed</title>
+                        <url>http://source.example.com</url>
+                    </source>
+                </item>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(feed.entries[0].source.is_some());
+        let source = feed.entries[0].source.as_ref().unwrap();
+        assert_eq!(source.title.as_deref(), Some("Source Feed"));
+        assert_eq!(source.link.as_deref(), Some("http://source.example.com"));
+    }
+
+    #[test]
+    fn test_parse_rss_empty_elements() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title></title>
+                <description></description>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(feed.feed.title.is_none() || feed.feed.title.as_deref() == Some(""));
+    }
+
+    #[test]
+    fn test_parse_rss_nesting_depth_limit() {
+        let mut xml = String::from(r#"<?xml version="1.0"?><rss version="2.0"><channel>"#);
+        for _ in 0..150 {
+            xml.push_str("<nested>");
+        }
+        xml.push_str("</channel></rss>");
+
+        let limits = ParserLimits {
+            max_nesting_depth: 100,
+            ..Default::default()
+        };
+        let result = parse_rss20_with_limits(xml.as_bytes(), limits);
+        assert!(result.is_err() || result.unwrap().bozo);
+    }
+
+    #[test]
+    fn test_parse_rss_skip_cloud_element() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>Test</title>
+                <cloud domain="rpc.example.com" port="80" path="/RPC2"/>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert_eq!(feed.feed.title.as_deref(), Some("Test"));
+    }
 }
