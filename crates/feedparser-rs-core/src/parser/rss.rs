@@ -20,16 +20,28 @@ use super::common::{
 };
 
 /// Extract attributes as owned key-value pairs
+/// Returns (attributes, `has_errors`) tuple where `has_errors` indicates
+/// if any attribute parsing errors occurred (for bozo flag)
 #[inline]
-fn collect_attributes(e: &quick_xml::events::BytesStart) -> Vec<(Vec<u8>, String)> {
-    e.attributes()
-        .flatten()
-        .filter_map(|attr| {
-            attr.unescape_value()
-                .ok()
-                .map(|v| (attr.key.as_ref().to_vec(), v.to_string()))
+fn collect_attributes(e: &quick_xml::events::BytesStart) -> (Vec<(Vec<u8>, String)>, bool) {
+    let mut has_errors = false;
+    let attrs = e
+        .attributes()
+        .filter_map(|result| {
+            if let Ok(attr) = result {
+                if let Ok(v) = attr.unescape_value() {
+                    Some((attr.key.as_ref().to_vec(), v.to_string()))
+                } else {
+                    has_errors = true;
+                    None
+                }
+            } else {
+                has_errors = true;
+                None
+            }
         })
-        .collect()
+        .collect();
+    (attrs, has_errors)
 }
 
 /// Find attribute value by key
@@ -127,7 +139,11 @@ fn parse_channel(
                 check_depth(*depth, limits.max_nesting_depth)?;
 
                 let tag = e.name().as_ref().to_vec();
-                let attrs = collect_attributes(&e);
+                let (attrs, has_attr_errors) = collect_attributes(&e);
+                if has_attr_errors {
+                    feed.bozo = true;
+                    feed.bozo_exception = Some("Malformed XML attributes".to_string());
+                }
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 match tag.as_slice() {
@@ -146,7 +162,14 @@ fn parse_channel(
                         }
 
                         match parse_item(reader, &mut buf, limits, depth) {
-                            Ok(entry) => feed.entries.push(entry),
+                            Ok((entry, has_attr_errors)) => {
+                                if has_attr_errors {
+                                    feed.bozo = true;
+                                    feed.bozo_exception =
+                                        Some("Malformed XML attributes".to_string());
+                                }
+                                feed.entries.push(entry);
+                            }
                             Err(e) => {
                                 feed.bozo = true;
                                 feed.bozo_exception = Some(e.to_string());
@@ -312,10 +335,8 @@ fn parse_channel_itunes(
         if let Some(value) = find_attribute(attrs, b"href") {
             let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
             itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
-            Ok(true)
-        } else {
-            Ok(false)
         }
+        Ok(true)
     } else if is_itunes_tag(tag, b"keywords") {
         let text = read_text(reader, buf, limits)?;
         let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
@@ -462,13 +483,15 @@ fn parse_channel_namespace(
 }
 
 /// Parse <item> element (entry)
+/// Returns Result with Entry and boolean indicating if there were attribute parsing errors
 fn parse_item(
     reader: &mut Reader<&[u8]>,
     buf: &mut Vec<u8>,
     limits: &ParserLimits,
     depth: &mut usize,
-) -> Result<Entry> {
+) -> Result<(Entry, bool)> {
     let mut entry = Entry::with_capacity();
+    let mut has_attr_errors = false;
 
     loop {
         match reader.read_event_into(buf) {
@@ -482,7 +505,10 @@ fn parse_item(
                 check_depth(*depth, limits.max_nesting_depth)?;
 
                 let tag = e.name().as_ref().to_vec();
-                let attrs = collect_attributes(e);
+                let (attrs, attr_error) = collect_attributes(e);
+                if attr_error {
+                    has_attr_errors = true;
+                }
 
                 // Use full qualified name to distinguish standard RSS tags from namespaced tags
                 match tag.as_slice() {
@@ -534,7 +560,7 @@ fn parse_item(
         buf.clear();
     }
 
-    Ok(entry)
+    Ok((entry, has_attr_errors))
 }
 
 /// Parse standard RSS 2.0 item elements
@@ -635,10 +661,8 @@ fn parse_item_itunes(
         if let Some(value) = find_attribute(attrs, b"href") {
             let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
             itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
-            Ok(true)
-        } else {
-            Ok(false)
         }
+        Ok(true)
     } else if is_itunes_tag(tag, b"episode") {
         let text = read_text(reader, buf, limits)?;
         let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
