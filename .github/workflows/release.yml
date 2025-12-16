@@ -1,0 +1,304 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # ============================================================================
+  # CRATES.IO
+  # ============================================================================
+  crates-verify:
+    name: "Crates: Verify"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release-verify"
+      - run: cargo build --release --all-features -p feedparser-rs
+      - run: cargo test --release -p feedparser-rs
+      - run: cargo package -p feedparser-rs
+
+  crates-publish:
+    name: "Crates: Publish"
+    runs-on: ubuntu-latest
+    needs: crates-verify
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Publish to crates.io
+        run: cargo publish -p feedparser-rs
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # ============================================================================
+  # PYPI
+  # ============================================================================
+  pypi-linux:
+    name: "PyPI: Linux ${{ matrix.target }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+          working-directory: crates/feedparser-rs-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi-linux-${{ matrix.target }}
+          path: crates/feedparser-rs-py/dist/*.whl
+          retention-days: 7
+
+  pypi-macos:
+    name: "PyPI: macOS ${{ matrix.target }}"
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          working-directory: crates/feedparser-rs-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi-macos-${{ matrix.target }}
+          path: crates/feedparser-rs-py/dist/*.whl
+          retention-days: 7
+
+  pypi-windows:
+    name: "PyPI: Windows"
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: x64
+          args: --release --out dist
+          working-directory: crates/feedparser-rs-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi-windows
+          path: crates/feedparser-rs-py/dist/*.whl
+          retention-days: 7
+
+  pypi-sdist:
+    name: "PyPI: Source"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: crates/feedparser-rs-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi-sdist
+          path: crates/feedparser-rs-py/dist/*.tar.gz
+          retention-days: 7
+
+  pypi-publish:
+    name: "PyPI: Publish"
+    runs-on: ubuntu-latest
+    needs: [pypi-linux, pypi-macos, pypi-windows, pypi-sdist]
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/feedparser-rs
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: pypi-*
+          merge-multiple: true
+      - run: ls -lhR dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: false
+          verbose: true
+
+  # ============================================================================
+  # NPM
+  # ============================================================================
+  npm-build:
+    name: "npm: ${{ matrix.target }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "npm-${{ matrix.target }}"
+          workspaces: crates/feedparser-rs-node
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: crates/feedparser-rs-node/package-lock.json
+      - name: Install dependencies
+        working-directory: crates/feedparser-rs-node
+        run: npm ci
+      - name: Build
+        working-directory: crates/feedparser-rs-node
+        run: npm run build -- --target ${{ matrix.target }}
+      - name: Test
+        if: |
+          (matrix.target == 'x86_64-unknown-linux-gnu' && matrix.os == 'ubuntu-latest') ||
+          (matrix.target == 'aarch64-unknown-linux-gnu' && matrix.os == 'ubuntu-24.04-arm') ||
+          (matrix.target == 'x86_64-pc-windows-msvc' && matrix.os == 'windows-latest') ||
+          (matrix.target == 'aarch64-apple-darwin' && matrix.os == 'macos-latest')
+        working-directory: crates/feedparser-rs-node
+        run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.target }}
+          path: crates/feedparser-rs-node/*.node
+          retention-days: 7
+
+  npm-publish:
+    name: "npm: Publish"
+    runs-on: ubuntu-latest
+    needs: npm-build
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/download-artifact@v4
+        with:
+          path: crates/feedparser-rs-node/artifacts
+          pattern: npm-*
+          merge-multiple: false
+      - name: Prepare artifacts
+        working-directory: crates/feedparser-rs-node
+        run: |
+          mkdir -p prebuilts
+          find artifacts -name "*.node" -exec cp {} prebuilts/ \;
+          ls -lh prebuilts/
+      - run: npm ci
+        working-directory: crates/feedparser-rs-node
+      - name: Publish
+        working-directory: crates/feedparser-rs-node
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ============================================================================
+  # GITHUB RELEASE
+  # ============================================================================
+  github-release:
+    name: "GitHub Release"
+    runs-on: ubuntu-latest
+    needs: [crates-publish, pypi-publish, npm-publish]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: pypi-*
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/npm
+          pattern: npm-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lhR artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/*.whl
+            artifacts/*.tar.gz
+            artifacts/npm/*.node
+          body: |
+            ## Installation
+
+            **Rust (crates.io):**
+            ```bash
+            cargo add feedparser-rs
+            ```
+
+            **Python (PyPI):**
+            ```bash
+            pip install feedparser-rs
+            ```
+
+            **Node.js (npm):**
+            ```bash
+            npm install feedparser-rs
+            ```
+
+            ## Links
+
+            - [crates.io](https://crates.io/crates/feedparser-rs)
+            - [PyPI](https://pypi.org/project/feedparser-rs/)
+            - [npm](https://www.npmjs.com/package/feedparser-rs)
+
+            See [CHANGELOG.md](CHANGELOG.md) for details.

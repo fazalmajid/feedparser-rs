@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2025-12-16
+
+### Changed
+- Merged all release workflows into single `release.yml` for reliable GitHub Release creation
+- All platforms (crates.io, PyPI, npm) now build and publish in a single coordinated workflow
+
 ## [0.1.6] - 2025-12-16
 
 ### Fixed
@@ -75,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test coverage
 - Documentation with examples
 
-[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/bug-ops/feedparser-rs/compare/v0.1.3...v0.1.4
