@@ -1,22 +1,25 @@
-# feedparser-rs Copilot Instructions
+# feedparser-rs GitHub Copilot Instructions
 
-## Project Overview
-High-performance RSS/Atom/JSON Feed parser in Rust with Python (PyO3) and Node.js (napi-rs) bindings. Drop-in replacement for Python's `feedparser` with 10-100x performance improvement.
+## Project Mission
+
+High-performance RSS/Atom/JSON Feed parser in Rust with Python (PyO3) and Node.js (napi-rs) bindings. This is a drop-in replacement for Python's `feedparser` library with 10-100x performance improvement.
+
+**CRITICAL**: API compatibility with Python feedparser is the #1 priority. Field names, types, and behavior must match exactly.
 
 **MSRV:** Rust 1.88.0 | **Edition:** 2024 | **License:** MIT/Apache-2.0
 
-## Architecture
+## Architecture Overview
 
 ### Workspace Structure
-- **`crates/feedparser-rs-core`** — Pure Rust parser. All parsing logic lives here.
-- **`crates/feedparser-rs-py`** — Python bindings via PyO3/maturin.
-- **`crates/feedparser-rs-node`** — Node.js bindings via napi-rs.
+- **`crates/feedparser-rs-core`** — Pure Rust parser. All parsing logic lives here. NO dependencies on other workspace crates.
+- **`crates/feedparser-rs-py`** — Python bindings via PyO3/maturin. Depends on core.
+- **`crates/feedparser-rs-node`** — Node.js bindings via napi-rs. Depends on core.
 
-### Parser Flow
-1. `parse()` → `detect_format()` identifies RSS/Atom/JSON
-2. Routes to `parser/rss.rs`, `parser/atom.rs`, or `parser/json.rs`
-3. Namespace handlers in `namespace/` extract iTunes, Dublin Core, Media RSS, Podcast 2.0
-4. Returns `ParsedFeed` with `bozo` flag for error tolerance
+### Parser Pipeline
+1. **Format Detection** (`parser/detect.rs`) — Identifies RSS 0.9x/1.0/2.0, Atom 0.3/1.0, or JSON Feed 1.0/1.1
+2. **Parsing** — Routes to `parser/rss.rs`, `parser/atom.rs`, or `parser/json.rs`
+3. **Namespace Extraction** — Handlers in `namespace/` process iTunes, Dublin Core, Media RSS, Podcast 2.0
+4. **Tolerant Error Handling** — Returns `ParsedFeed` with `bozo` flag set on errors, continues parsing
 
 ## Idiomatic Rust & Performance
 
@@ -117,12 +120,98 @@ fn test_malformed_sets_bozo() {
 }
 ```
 
+## Security Requirements
+
+### SSRF Protection (CRITICAL for HTTP Module)
+Block these URL patterns before fetching:
+- Localhost/loopback: `127.0.0.1`, `[::1]`, `localhost`
+- Private networks: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+- Link-local: `169.254.0.0/16` (AWS/GCP metadata endpoints), `fe80::/10`
+- Special addresses: `0.0.0.0/8`, `255.255.255.255`, `::/128`
+
+Always validate URLs through `is_safe_url()` before HTTP requests.
+
+### XSS Protection (HTML Sanitization)
+Use `ammonia` for HTML content from feeds:
+- Allowed tags: `a, abbr, b, blockquote, br, code, div, em, h1-h6, hr, i, img, li, ol, p, pre, span, strong, ul`
+- Enforce `rel="nofollow noopener"` on links
+- Allow only `http`, `https`, `mailto` URL schemes
+- Never pass raw HTML to Python/Node.js bindings without sanitization
+
+### DoS Protection
+Apply limits via `ParserLimits`:
+- `max_feed_size`: Default 50MB
+- `max_nesting_depth`: Default 100 levels
+- `max_entries`: Default 10,000 items
+- `max_text_length`: Default 1MB per text field
+- `max_attribute_length`: Default 10KB per attribute
+
+## Code Quality Standards
+
+### Function Length Guidelines
+- **Target**: Functions should be <50 lines
+- **Maximum**: NEVER exceed 100 lines
+- **If >50 lines**: Extract inline logic to helper functions
+
+Example refactoring pattern:
+```rust
+// Before: 200+ line function
+fn parse_channel(...) {
+    match tag {
+        b"itunes:category" => { /* 80 lines inline */ }
+        // ...
+    }
+}
+
+// After: Delegate to helpers
+fn parse_channel(...) {
+    match tag {
+        tag if is_itunes_tag_any(tag) => parse_channel_itunes(tag, ...)?,
+        // ...
+    }
+}
+```
+
+### Documentation Requirements
+All public APIs must have doc comments:
+```rust
+/// Parses an RSS/Atom feed from bytes.
+///
+/// # Arguments
+/// * `data` - Raw feed content as bytes
+///
+/// # Returns
+/// Returns `ParsedFeed` with extracted metadata. If parsing encounters errors,
+/// `bozo` flag is set to `true` and `bozo_exception` contains the error description.
+///
+/// # Examples
+/// ```
+/// let xml = b"<rss version=\"2.0\">...</rss>";
+/// let feed = parse(xml)?;
+/// assert_eq!(feed.version, FeedVersion::Rss20);
+/// ```
+pub fn parse(data: &[u8]) -> Result<ParsedFeed> { ... }
+```
+
+### Inline Comments
+Minimize inline comments. Use comments ONLY for:
+1. **Why** decisions (not **what** the code does)
+2. Non-obvious constraints or workarounds
+3. References to specifications (RFC 4287 section 4.1.2, etc.)
+
 ## Commit & Branch Conventions
 - Branch: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`
 - Commits: [Conventional Commits](https://conventionalcommits.org/)
+- Never mention "Claude" or "co-authored" in commit messages
 
 ## What NOT to Do
-- Don't use `.unwrap()` or `.expect()` in parser code — use bozo pattern
-- Don't add dependencies without workspace-level declaration in root `Cargo.toml`
-- Don't skip `--exclude feedparser-rs-py` in workspace-wide Rust commands (PyO3 needs special handling)
-- Don't break API compatibility with Python feedparser field names
+- ❌ Don't use `.unwrap()` or `.expect()` in parser code — use bozo pattern
+- ❌ Don't add dependencies without workspace-level declaration in root `Cargo.toml`
+- ❌ Don't skip `--exclude feedparser-rs-py` in workspace-wide Rust commands (PyO3 needs special handling)
+- ❌ Don't break API compatibility with Python feedparser field names
+- ❌ Don't panic on malformed feeds — set `bozo = true` and continue parsing
+- ❌ Don't fetch URLs without SSRF validation (`is_safe_url()`)
+- ❌ Don't pass raw HTML to bindings without sanitization (`sanitize_html()`)
+- ❌ Don't create functions >100 lines — extract helpers
+- ❌ Don't use generic names like `utils`, `helpers`, `common` for modules
+- ❌ Don't add emojis to code or comments
