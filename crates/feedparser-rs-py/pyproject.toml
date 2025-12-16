@@ -26,9 +26,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rabax/feedparser-rs"
-Documentation = "https://github.com/rabax/feedparser-rs#readme"
-Repository = "https://github.com/rabax/feedparser-rs"
+Homepage = "https://github.com/bug-ops/feedparser-rs"
+Documentation = "https://github.com/bug-ops/feedparser-rs#readme"
+Repository = "https://github.com/bug-ops/feedparser-rs"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
