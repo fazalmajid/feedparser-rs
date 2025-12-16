@@ -97,28 +97,120 @@ See [crates/feedparser-rs-node/README.md](crates/feedparser-rs-node/README.md) f
 
 ## Development
 
+This project uses [cargo-make](https://github.com/sagiegurari/cargo-make) for task automation. All development tasks are defined in `Makefile.toml`.
+
+### Setup
+
+Install cargo-make:
+
+```bash
+cargo install cargo-make
+```
+
+### Available Tasks
+
+View all available tasks:
+
+```bash
+cargo make --list-all-steps
+```
+
+### Common Development Tasks
+
+#### Formatting
+
+```bash
+# Format code with nightly rustfmt
+cargo make fmt
+
+# Check formatting without modifying files
+cargo make fmt-check
+```
+
+#### Linting
+
+```bash
+# Run clippy
+cargo make clippy
+
+# Run all linting checks (format + clippy + doc)
+cargo make lint
+```
+
+#### Testing
+
+```bash
+# Run Rust tests
+cargo make test-rust
+
+# Run all tests (Rust + Python + Node.js)
+cargo make test
+
+# Run doctests
+cargo make doctest
+```
+
+#### Security
+
+```bash
+# Run all security checks
+cargo make deny
+
+# Run specific security checks
+cargo make deny-advisories
+cargo make deny-licenses
+```
+
+#### Coverage
+
+```bash
+# Generate Rust coverage
+cargo make coverage-rust
+
+# Generate all coverage reports
+cargo make coverage
+```
+
+#### Benchmarks
+
+```bash
+# Run Rust benchmarks
+cargo make bench
+
+# Compare Rust vs Python performance
+cargo make bench-compare
+```
+
+#### Utilities
+
+```bash
+# Check for outdated dependencies
+cargo make check-versions
+```
+
+#### Pre-commit/Pre-push
+
+```bash
+# Run checks before committing
+cargo make pre-commit
+
+# Run comprehensive checks before pushing
+cargo make pre-push
+```
+
+#### CI Simulation
+
+```bash
+# Run all CI checks locally
+cargo make ci-all
+```
+
 ### Build
 
 ```bash
 cargo build --workspace
-```
-
-### Test
-
-```bash
-cargo nextest run
-```
-
-### Lint
-
-```bash
-cargo clippy --workspace -- -D warnings
-```
-
-### Format
-
-```bash
-cargo +nightly fmt
+# or
+cargo make build
 ```
 
 ## License

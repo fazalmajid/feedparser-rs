@@ -1,0 +1,420 @@
+# cargo-make configuration for feedparser-rs
+# Task automation for local development and CI/CD
+# https://github.com/sagiegurari/cargo-make
+
+[config]
+default_to_workspace = false
+min_version = "0.37.24"
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+RUST_BACKTRACE = "short"
+CARGO_TERM_COLOR = "always"
+
+# ============================================================================
+# Development Tasks - Formatting
+# ============================================================================
+
+[tasks.fmt]
+description = "Format code with nightly rustfmt"
+install_crate = { rustup_component_name = "rustfmt", binary = "rustfmt", test_arg = "--help" }
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.fmt-check]
+description = "Check code formatting with nightly rustfmt"
+install_crate = { rustup_component_name = "rustfmt", binary = "rustfmt", test_arg = "--help" }
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+# ============================================================================
+# Development Tasks - Linting
+# ============================================================================
+
+[tasks.clippy]
+description = "Run clippy on workspace (excluding Python bindings)"
+install_crate = { rustup_component_name = "clippy", binary = "cargo-clippy", test_arg = "--help" }
+command = "cargo"
+args = [
+    "clippy",
+    "--all-targets",
+    "--all-features",
+    "--workspace",
+    "--exclude", "feedparser-rs-py",
+    "--",
+    "-D", "warnings"
+]
+
+[tasks.doc]
+description = "Generate documentation"
+command = "cargo"
+args = ["doc", "--all-features", "--workspace", "--exclude", "feedparser-rs-py"]
+
+[tasks.doc-check]
+description = "Check documentation for warnings"
+command = "cargo"
+args = ["doc", "--no-deps", "--all-features", "--workspace", "--exclude", "feedparser-rs-py"]
+env = { "RUSTDOCFLAGS" = "-D warnings" }
+
+[tasks.lint]
+description = "Run all linting checks (fmt-check + clippy + doc-check)"
+dependencies = ["fmt-check", "clippy", "doc-check"]
+
+# ============================================================================
+# Security Tasks
+# ============================================================================
+
+[tasks.deny]
+description = "Run all cargo-deny checks"
+dependencies = ["deny-advisories", "deny-licenses", "deny-bans", "deny-sources"]
+
+[tasks.deny-advisories]
+description = "Check for security vulnerabilities"
+install_crate = { crate_name = "cargo-deny", binary = "cargo-deny", test_arg = "--version" }
+command = "cargo"
+args = ["deny", "check", "advisories"]
+
+[tasks.deny-licenses]
+description = "Check license compliance"
+install_crate = { crate_name = "cargo-deny", binary = "cargo-deny", test_arg = "--version" }
+command = "cargo"
+args = ["deny", "check", "licenses"]
+
+[tasks.deny-bans]
+description = "Check for banned dependencies"
+install_crate = { crate_name = "cargo-deny", binary = "cargo-deny", test_arg = "--version" }
+command = "cargo"
+args = ["deny", "check", "bans"]
+
+[tasks.deny-sources]
+description = "Check dependency sources"
+install_crate = { crate_name = "cargo-deny", binary = "cargo-deny", test_arg = "--version" }
+command = "cargo"
+args = ["deny", "check", "sources"]
+
+# ============================================================================
+# Testing Tasks - Rust
+# ============================================================================
+
+[tasks.test]
+description = "Run all tests (Rust + Python + Node.js)"
+dependencies = ["test-rust", "test-python", "test-node"]
+
+[tasks.test-rust]
+description = "Run Rust tests with nextest"
+install_crate = { crate_name = "cargo-nextest", binary = "cargo-nextest", test_arg = "--version" }
+command = "cargo"
+args = [
+    "nextest", "run",
+    "--all-features",
+    "--no-fail-fast",
+    "--workspace",
+    "--exclude", "feedparser-rs-py"
+]
+
+[tasks.doctest]
+description = "Run Rust documentation tests"
+command = "cargo"
+args = ["test", "--doc", "--all-features", "--workspace", "--exclude", "feedparser-rs-py"]
+
+[tasks.test-rust-all]
+description = "Run all Rust tests including doctests"
+dependencies = ["test-rust", "doctest"]
+
+# ============================================================================
+# Testing Tasks - Python
+# ============================================================================
+
+[tasks.test-python]
+description = "Build and test Python bindings"
+condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-py/Cargo.toml"] }
+dependencies = ["test-python-deps", "test-python-build", "test-python-install", "test-python-run", "test-python-import"]
+
+[tasks.test-python-deps]
+description = "Install Python dependencies"
+command = "uv"
+args = ["pip", "install", "--system", "maturin", "pytest"]
+
+[tasks.test-python-build]
+description = "Build Python wheel with maturin"
+cwd = "./crates/feedparser-rs-py"
+command = "maturin"
+args = ["build", "--release", "--out", "dist"]
+
+[tasks.test-python-install]
+description = "Install built wheel"
+cwd = "./crates/feedparser-rs-py"
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "dist/feedparser_rs-0.1.0-cp39-abi3-${CARGO_MAKE_RUST_TARGET_TRIPLE}.whl"]
+# Note: wheel name pattern may need adjustment per platform
+
+[tasks.test-python-install.linux]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.test-python-install.mac]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.test-python-install.windows]
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.test-python-run]
+description = "Run pytest"
+cwd = "./crates/feedparser-rs-py"
+command = "pytest"
+args = ["tests/", "-v"]
+
+[tasks.test-python-import]
+description = "Test Python import"
+command = "python"
+args = ["-c", "import feedparser_rs; print('feedparser-rs loaded successfully')"]
+
+# ============================================================================
+# Testing Tasks - Node.js
+# ============================================================================
+
+[tasks.test-node]
+description = "Build and test Node.js bindings"
+condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-node/package.json"] }
+dependencies = ["test-node-install", "test-node-build", "test-node-run"]
+
+[tasks.test-node-install]
+description = "Install Node.js dependencies"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm install --frozen-lockfile"
+
+[tasks.test-node-build]
+description = "Build Node.js bindings"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm run build"
+
+[tasks.test-node-run]
+description = "Run Node.js tests"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm test"
+
+# ============================================================================
+# Coverage Tasks
+# ============================================================================
+
+[tasks.coverage]
+description = "Generate coverage for all components"
+dependencies = ["coverage-rust", "coverage-python", "coverage-node"]
+
+[tasks.coverage-rust]
+description = "Generate Rust code coverage with llvm-cov"
+install_crate = { crate_name = "cargo-llvm-cov", binary = "cargo-llvm-cov", test_arg = "--version" }
+script = '''
+#!/bin/bash
+set -e
+
+# Install nextest if not available
+if ! command -v cargo-nextest &> /dev/null; then
+    cargo install cargo-nextest
+fi
+
+cargo llvm-cov --all-features --workspace --exclude feedparser-rs-py \
+    --lcov --output-path lcov.info nextest
+
+echo "Coverage report generated: lcov.info"
+'''
+
+[tasks.coverage-python]
+description = "Generate Python code coverage"
+condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-py/tests"] }
+dependencies = ["coverage-python-deps", "coverage-python-build", "coverage-python-install", "coverage-python-run"]
+
+[tasks.coverage-python-deps]
+description = "Install Python coverage dependencies"
+command = "uv"
+args = ["pip", "install", "--system", "maturin", "pytest", "pytest-cov"]
+
+[tasks.coverage-python-build]
+description = "Build Python wheel for coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "maturin"
+args = ["build", "--release", "--out", "dist"]
+
+[tasks.coverage-python-install]
+description = "Install built wheel for coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "uv"
+args = ["pip", "install", "--system", "--reinstall", "--no-deps", "--find-links", "dist", "feedparser-rs"]
+
+[tasks.coverage-python-run]
+description = "Run pytest with coverage"
+cwd = "./crates/feedparser-rs-py"
+command = "pytest"
+args = ["tests/", "--cov=feedparser_rs", "--cov-report=xml", "--cov-report=term"]
+
+[tasks.coverage-node]
+description = "Generate Node.js code coverage with c8"
+condition = { files_exist = ["${CARGO_MAKE_WORKING_DIRECTORY}/crates/feedparser-rs-node/package.json"] }
+dependencies = ["coverage-node-install", "coverage-node-build", "coverage-node-run"]
+
+[tasks.coverage-node-install]
+description = "Install Node.js dependencies for coverage"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm install --frozen-lockfile"
+
+[tasks.coverage-node-build]
+description = "Build Node.js bindings for coverage"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm run build"
+
+[tasks.coverage-node-run]
+description = "Run Node.js tests with coverage"
+cwd = "./crates/feedparser-rs-node"
+script_runner = "@shell"
+script = "pnpm run test:coverage"
+
+# ============================================================================
+# MSRV Check
+# ============================================================================
+
+[tasks.msrv-check]
+description = "Check build with Minimum Supported Rust Version (1.88.0)"
+toolchain = "1.88.0"
+command = "cargo"
+args = ["check", "--all-features", "--workspace", "--exclude", "feedparser-rs-py"]
+
+# ============================================================================
+# Utility Tasks
+# ============================================================================
+
+[tasks.check-versions]
+description = "Check for outdated dependencies"
+install_crate = { crate_name = "cargo-outdated", binary = "cargo-outdated", test_arg = "--version" }
+command = "cargo"
+args = ["outdated", "--workspace", "--root-deps-only"]
+
+# ============================================================================
+# Benchmark Tasks
+# ============================================================================
+
+[tasks.bench]
+description = "Run Rust benchmarks"
+command = "cargo"
+args = ["bench", "-p", "feedparser-rs-core"]
+
+[tasks.bench-compare]
+description = "Compare Rust vs Python feedparser performance"
+script = '''
+#!/bin/bash
+set -e
+
+echo "Running feedparser-rs benchmarks (Rust)..."
+cargo bench -p feedparser-rs-core
+
+echo ""
+echo "Running feedparser benchmarks (Python)..."
+cd benchmarks/python
+
+# Create venv if it doesn't exist
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+fi
+
+source .venv/bin/activate
+pip install -q -r requirements.txt
+python bench_feedparser.py
+
+echo ""
+echo "Results saved to:"
+echo "  - Rust: target/criterion/parse/"
+echo "  - Python: (console output above)"
+'''
+
+# ============================================================================
+# CI-Specific Composite Tasks
+# ============================================================================
+
+[tasks.ci-lint]
+description = "CI: Run all linting checks"
+run_task = { name = ["fmt-check", "clippy", "doc-check"] }
+
+[tasks.ci-security]
+description = "CI: Run all security checks"
+run_task = { name = ["deny"] }
+
+[tasks.ci-test-rust]
+description = "CI: Run Rust tests"
+run_task = { name = ["test-rust", "doctest"] }
+
+[tasks.ci-test-python]
+description = "CI: Build and test Python bindings"
+run_task = { name = ["test-python"] }
+
+[tasks.ci-test-node]
+description = "CI: Build and test Node.js bindings"
+run_task = { name = ["test-node"] }
+
+[tasks.ci-coverage-rust]
+description = "CI: Generate Rust coverage"
+run_task = { name = ["coverage-rust"] }
+
+[tasks.ci-coverage-python]
+description = "CI: Generate Python coverage"
+run_task = { name = ["coverage-python"] }
+
+[tasks.ci-coverage-node]
+description = "CI: Generate Node.js coverage"
+run_task = { name = ["coverage-node"] }
+
+[tasks.ci-msrv]
+description = "CI: Check MSRV compatibility"
+run_task = { name = ["msrv-check"] }
+
+# ============================================================================
+# Build Tasks
+# ============================================================================
+
+[tasks.build]
+description = "Build workspace"
+command = "cargo"
+args = ["build", "--all-features", "--workspace"]
+
+[tasks.build-release]
+description = "Build workspace in release mode"
+command = "cargo"
+args = ["build", "--release", "--all-features", "--workspace"]
+
+# ============================================================================
+# Clean Task
+# ============================================================================
+
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+# ============================================================================
+# Development Workflow Tasks
+# ============================================================================
+
+[tasks.pre-commit]
+description = "Run checks before committing (fmt + clippy + test)"
+dependencies = ["fmt", "clippy", "test-rust"]
+
+[tasks.pre-push]
+description = "Run comprehensive checks before pushing"
+dependencies = ["lint", "deny", "test", "doc"]
+
+[tasks.ci-all]
+description = "Run all CI checks locally"
+dependencies = [
+    "ci-lint",
+    "ci-security",
+    "ci-test-rust",
+    "ci-coverage-rust",
+    "ci-msrv"
+]
