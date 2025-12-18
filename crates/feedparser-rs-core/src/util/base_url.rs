@@ -264,6 +264,82 @@ impl BaseUrlContext {
         resolve_url(href, self.base.as_deref())
     }
 
+    /// Resolves a URL against the current base with SSRF protection
+    ///
+    /// This method performs URL resolution and validates the result to prevent
+    /// Server-Side Request Forgery (SSRF) attacks via malicious xml:base attributes.
+    ///
+    /// # Security
+    ///
+    /// If the resolved URL fails SSRF safety checks (localhost, private IPs,
+    /// dangerous schemes), the original `href` is returned unchanged instead
+    /// of the resolved URL.
+    ///
+    /// # Arguments
+    ///
+    /// * `href` - The URL to resolve (may be relative or absolute)
+    ///
+    /// # Returns
+    ///
+    /// The resolved URL if safe, otherwise the original `href`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feedparser_rs::util::base_url::BaseUrlContext;
+    ///
+    /// // Safe URL resolution
+    /// let ctx = BaseUrlContext::with_base("http://example.com/");
+    /// assert_eq!(ctx.resolve_safe("page.html"), "http://example.com/page.html");
+    ///
+    /// // SSRF blocked - returns original href
+    /// let dangerous_ctx = BaseUrlContext::with_base("http://localhost/");
+    /// assert_eq!(dangerous_ctx.resolve_safe("admin"), "admin");
+    /// ```
+    #[must_use]
+    pub fn resolve_safe(&self, href: &str) -> String {
+        let resolved = self.resolve(href);
+
+        // Use lowercase for case-insensitive scheme comparison (RFC 3986)
+        let resolved_lower = resolved.to_lowercase();
+
+        // Block dangerous schemes (file://, data://, javascript://, etc.)
+        // Case-insensitive to prevent bypass via FILE://, JAVASCRIPT:, etc.
+        if resolved_lower.starts_with("file://")
+            || resolved_lower.starts_with("data:")
+            || resolved_lower.starts_with("javascript:")
+            || resolved_lower.starts_with("ftp://")
+            || resolved_lower.starts_with("gopher://")
+        {
+            // Dangerous scheme - return original href
+            return href.to_string();
+        }
+
+        // Validate HTTP(S) URLs for SSRF
+        if resolved_lower.starts_with("http://") || resolved_lower.starts_with("https://") {
+            if is_safe_url(&resolved) {
+                resolved
+            } else {
+                // SSRF blocked - check if href itself is an unsafe absolute URL
+                // If href is an absolute URL pointing to dangerous target, return empty
+                // Otherwise return original relative href (safe since it requires base to resolve)
+                let href_is_unsafe_absolute = Url::parse(href).is_ok_and(|parsed_href| {
+                    let is_http_scheme = matches!(parsed_href.scheme(), "http" | "https");
+                    is_http_scheme && !is_safe_url(href)
+                });
+
+                if href_is_unsafe_absolute {
+                    String::new()
+                } else {
+                    href.to_string()
+                }
+            }
+        } else {
+            // Other schemes (mailto:, tel:) or relative URLs pass through
+            resolved
+        }
+    }
+
     /// Creates a child context inheriting this context's base
     #[must_use]
     pub fn child(&self) -> Self {
