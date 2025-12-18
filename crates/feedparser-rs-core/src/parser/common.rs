@@ -209,6 +209,20 @@ pub fn is_content_tag(name: &[u8]) -> Option<&str> {
     extract_ns_local_name(name, b"content:")
 }
 
+/// Check if element is a Syndication namespaced tag
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(is_syn_tag(b"syn:updatePeriod"), Some("updatePeriod"));
+/// assert_eq!(is_syn_tag(b"syn:updateFrequency"), Some("updateFrequency"));
+/// assert_eq!(is_syn_tag(b"dc:creator"), None);
+/// ```
+#[inline]
+pub fn is_syn_tag(name: &[u8]) -> Option<&str> {
+    extract_ns_local_name(name, b"syn:")
+}
+
 /// Check if element is a Media RSS namespaced tag
 ///
 /// # Examples

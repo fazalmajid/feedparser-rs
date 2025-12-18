@@ -9,7 +9,8 @@ use feedparser_rs::{
     FeedMeta as CoreFeedMeta, Generator as CoreGenerator, Image as CoreImage, Link as CoreLink,
     ParsedFeed as CoreParsedFeed, ParserLimits, Person as CorePerson,
     PodcastPerson as CorePodcastPerson, PodcastTranscript as CorePodcastTranscript,
-    Source as CoreSource, Tag as CoreTag, TextConstruct as CoreTextConstruct, TextType,
+    Source as CoreSource, SyndicationMeta as CoreSyndicationMeta, Tag as CoreTag,
+    TextConstruct as CoreTextConstruct, TextType,
 };
 
 /// Default maximum feed size (100 MB) - prevents DoS attacks
@@ -264,6 +265,27 @@ impl From<CoreParsedFeed> for ParsedFeed {
     }
 }
 
+/// Syndication module metadata (RSS 1.0)
+#[napi(object)]
+pub struct SyndicationMeta {
+    /// Update period (hourly, daily, weekly, monthly, yearly)
+    pub update_period: Option<String>,
+    /// Number of times updated per period
+    pub update_frequency: Option<u32>,
+    /// Base date for update schedule (ISO 8601)
+    pub update_base: Option<String>,
+}
+
+impl From<CoreSyndicationMeta> for SyndicationMeta {
+    fn from(core: CoreSyndicationMeta) -> Self {
+        Self {
+            update_period: core.update_period.map(|p| p.as_str().to_string()),
+            update_frequency: core.update_frequency,
+            update_base: core.update_base,
+        }
+    }
+}
+
 /// Feed metadata
 #[napi(object)]
 pub struct FeedMeta {
@@ -319,6 +341,14 @@ pub struct FeedMeta {
     pub ttl: Option<u32>,
     /// License URL (Creative Commons, etc.)
     pub license: Option<String>,
+    /// Syndication module metadata (RSS 1.0)
+    pub syndication: Option<SyndicationMeta>,
+    /// Dublin Core creator (author fallback)
+    pub dc_creator: Option<String>,
+    /// Dublin Core publisher
+    pub dc_publisher: Option<String>,
+    /// Dublin Core rights (copyright)
+    pub dc_rights: Option<String>,
 }
 
 impl From<CoreFeedMeta> for FeedMeta {
@@ -350,6 +380,10 @@ impl From<CoreFeedMeta> for FeedMeta {
             id: core.id,
             ttl: core.ttl,
             license: core.license,
+            syndication: core.syndication.map(SyndicationMeta::from),
+            dc_creator: core.dc_creator,
+            dc_publisher: core.dc_publisher,
+            dc_rights: core.dc_rights,
         }
     }
 }
@@ -411,77 +445,39 @@ pub struct Entry {
 
 impl From<CoreEntry> for Entry {
     fn from(core: CoreEntry) -> Self {
-        // Pre-allocate Vec capacity to avoid reallocations
-        let links_cap = core.links.len();
-        let content_cap = core.content.len();
-        let authors_cap = core.authors.len();
-        let contributors_cap = core.contributors.len();
-        let tags_cap = core.tags.len();
-        let enclosures_cap = core.enclosures.len();
-        let transcripts_cap = core.podcast_transcripts.len();
-        let persons_cap = core.podcast_persons.len();
-
         Self {
             id: core.id,
             title: core.title,
             title_detail: core.title_detail.map(TextConstruct::from),
             link: core.link,
-            links: {
-                let mut v = Vec::with_capacity(links_cap);
-                v.extend(core.links.into_iter().map(Link::from));
-                v
-            },
+            links: core.links.into_iter().map(Link::from).collect(),
             summary: core.summary,
             summary_detail: core.summary_detail.map(TextConstruct::from),
-            content: {
-                let mut v = Vec::with_capacity(content_cap);
-                v.extend(core.content.into_iter().map(Content::from));
-                v
-            },
+            content: core.content.into_iter().map(Content::from).collect(),
             published: core.published.map(|dt| dt.timestamp_millis()),
             updated: core.updated.map(|dt| dt.timestamp_millis()),
             created: core.created.map(|dt| dt.timestamp_millis()),
             expired: core.expired.map(|dt| dt.timestamp_millis()),
             author: core.author,
             author_detail: core.author_detail.map(Person::from),
-            authors: {
-                let mut v = Vec::with_capacity(authors_cap);
-                v.extend(core.authors.into_iter().map(Person::from));
-                v
-            },
-            contributors: {
-                let mut v = Vec::with_capacity(contributors_cap);
-                v.extend(core.contributors.into_iter().map(Person::from));
-                v
-            },
+            authors: core.authors.into_iter().map(Person::from).collect(),
+            contributors: core.contributors.into_iter().map(Person::from).collect(),
             publisher: core.publisher,
             publisher_detail: core.publisher_detail.map(Person::from),
-            tags: {
-                let mut v = Vec::with_capacity(tags_cap);
-                v.extend(core.tags.into_iter().map(Tag::from));
-                v
-            },
-            enclosures: {
-                let mut v = Vec::with_capacity(enclosures_cap);
-                v.extend(core.enclosures.into_iter().map(Enclosure::from));
-                v
-            },
+            tags: core.tags.into_iter().map(Tag::from).collect(),
+            enclosures: core.enclosures.into_iter().map(Enclosure::from).collect(),
             comments: core.comments,
             source: core.source.map(Source::from),
-            podcast_transcripts: {
-                let mut v = Vec::with_capacity(transcripts_cap);
-                v.extend(
-                    core.podcast_transcripts
-                        .into_iter()
-                        .map(PodcastTranscript::from),
-                );
-                v
-            },
-            podcast_persons: {
-                let mut v = Vec::with_capacity(persons_cap);
-                v.extend(core.podcast_persons.into_iter().map(PodcastPerson::from));
-                v
-            },
+            podcast_transcripts: core
+                .podcast_transcripts
+                .into_iter()
+                .map(PodcastTranscript::from)
+                .collect(),
+            podcast_persons: core
+                .podcast_persons
+                .into_iter()
+                .map(PodcastPerson::from)
+                .collect(),
             license: core.license,
         }
     }

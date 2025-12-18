@@ -5,6 +5,7 @@ use super::{
     podcast::{ItunesFeedMeta, PodcastMeta},
     version::FeedVersion,
 };
+use crate::namespace::syndication::SyndicationMeta;
 use crate::{ParserLimits, error::Result};
 use chrono::{DateTime, Utc};
 use quick_xml::Reader;
@@ -75,6 +76,8 @@ pub struct FeedMeta {
     pub dc_rights: Option<String>,
     /// License URL (Creative Commons, etc.)
     pub license: Option<String>,
+    /// Syndication module metadata (RSS 1.0)
+    pub syndication: Option<SyndicationMeta>,
 }
 
 /// Parsed feed result
