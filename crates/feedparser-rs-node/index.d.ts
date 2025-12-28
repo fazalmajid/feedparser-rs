@@ -87,6 +87,24 @@ export interface Entry {
   podcastPersons: Array<PodcastPerson>
   /** License URL (Creative Commons, etc.) */
   license?: string
+  /** Geographic location (GeoRSS) */
+  geo?: GeoLocation
+  /** Dublin Core creator (author) */
+  dcCreator?: string
+  /** Dublin Core date (milliseconds since epoch) */
+  dcDate?: number
+  /** Dublin Core subject tags */
+  dcSubject: Array<string>
+  /** Dublin Core rights (copyright) */
+  dcRights?: string
+  /** Media RSS thumbnails */
+  mediaThumbnails: Array<MediaThumbnail>
+  /** Media RSS content */
+  mediaContent: Array<MediaContent>
+  /** iTunes episode metadata */
+  itunes?: ItunesEntryMeta
+  /** Podcast 2.0 episode metadata */
+  podcast?: PodcastEntryMeta
 }
 
 /** Feed metadata */
@@ -151,6 +169,12 @@ export interface FeedMeta {
   dcPublisher?: string
   /** Dublin Core rights (copyright) */
   dcRights?: string
+  /** Geographic location (GeoRSS) */
+  geo?: GeoLocation
+  /** iTunes podcast metadata */
+  itunes?: ItunesFeedMeta
+  /** Podcast 2.0 metadata */
+  podcast?: PodcastMeta
 }
 
 /** Generator metadata */
@@ -161,6 +185,24 @@ export interface Generator {
   uri?: string
   /** Generator version */
   version?: string
+}
+
+/** Geographic location from GeoRSS namespace */
+export interface GeoLocation {
+  /** Type of geographic shape ("point", "line", "polygon", "box") */
+  geoType: string
+  /**
+   * Coordinate pairs as nested array [[lat, lng], ...]
+   *
+   * Format depends on geo_type:
+   * - "point": Single pair [[lat, lng]]
+   * - "line": Two or more pairs [[lat1, lng1], [lat2, lng2], ...]
+   * - "box": Two pairs [[lower-left-lat, lower-left-lng], [upper-right-lat, upper-right-lng]]
+   * - "polygon": Three or more pairs forming a closed shape [[lat1, lng1], ..., [lat1, lng1]]
+   */
+  coordinates: Array<Array<number>>
+  /** Coordinate Reference System (e.g., "EPSG:4326" for WGS84 latitude/longitude) */
+  crs?: string
 }
 
 /** Image metadata */
@@ -179,6 +221,80 @@ export interface Image {
   description?: string
 }
 
+/** iTunes category */
+export interface ItunesCategory {
+  /** Category text */
+  text: string
+  /** Subcategory */
+  subcategory?: string
+}
+
+/** iTunes episode metadata */
+export interface ItunesEntryMeta {
+  /** Episode title override */
+  title?: string
+  /** Episode author */
+  author?: string
+  /**
+   * Episode duration in seconds
+   *
+   * Parsed from various formats: "3600", "60:00", "1:00:00"
+   */
+  duration?: number
+  /** Explicit content flag for this episode */
+  explicit?: boolean
+  /**
+   * Episode-specific artwork URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  image?: string
+  /** Episode number */
+  episode?: number
+  /** Season number */
+  season?: number
+  /** Episode type: "full", "trailer", or "bonus" */
+  episodeType?: string
+}
+
+/** iTunes podcast feed metadata */
+export interface ItunesFeedMeta {
+  /** Podcast author */
+  author?: string
+  /** Podcast owner information */
+  owner?: ItunesOwner
+  /** Podcast categories */
+  categories: Array<ItunesCategory>
+  /** Explicit content flag */
+  explicit?: boolean
+  /**
+   * Podcast artwork URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  image?: string
+  /** Podcast keywords */
+  keywords: Array<string>
+  /** Podcast type (episodic/serial) */
+  podcastType?: string
+  /** Podcast completion status */
+  complete?: boolean
+  /**
+   * New feed URL for migrated podcasts
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  newFeedUrl?: string
+}
+
+/** iTunes owner information */
+export interface ItunesOwner {
+  /** Owner name */
+  name?: string
+  /** Owner email */
+  email?: string
+}
+
 /** Link in feed or entry */
 export interface Link {
   /** Link URL */
@@ -193,6 +309,40 @@ export interface Link {
   length?: number
   /** Language of the linked resource */
   hreflang?: string
+}
+
+/** Media RSS content */
+export interface MediaContent {
+  /**
+   * Media URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  url: string
+  /** MIME type */
+  type?: string
+  /** File size in bytes (converted from u64 with i64::MAX cap) */
+  filesize?: number
+  /** Width in pixels */
+  width?: number
+  /** Height in pixels */
+  height?: number
+  /** Duration in seconds (converted from u64 with i64::MAX cap) */
+  duration?: number
+}
+
+/** Media RSS thumbnail */
+export interface MediaThumbnail {
+  /**
+   * Thumbnail URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  url: string
+  /** Width in pixels */
+  width?: number
+  /** Height in pixels */
+  height?: number
 }
 
 /**
@@ -341,6 +491,56 @@ export interface Person {
   uri?: string
 }
 
+/** Podcast chapters */
+export interface PodcastChapters {
+  /**
+   * Chapters URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  url: string
+  /** Chapters MIME type (e.g., "application/json+chapters", "application/xml+chapters") */
+  type: string
+}
+
+/** Podcast 2.0 episode metadata */
+export interface PodcastEntryMeta {
+  /** Episode transcripts */
+  transcript: Array<PodcastTranscript>
+  /** Episode chapters */
+  chapters?: PodcastChapters
+  /** Episode soundbites */
+  soundbite: Array<PodcastSoundbite>
+  /** Episode persons */
+  person: Array<PodcastPerson>
+}
+
+/** Podcast funding link */
+export interface PodcastFunding {
+  /**
+   * Funding URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
+  url: string
+  /** Funding message */
+  message?: string
+}
+
+/** Podcast 2.0 namespace metadata (feed level) */
+export interface PodcastMeta {
+  /** Podcast transcripts */
+  transcripts: Array<PodcastTranscript>
+  /** Podcast funding links */
+  funding: Array<PodcastFunding>
+  /** Podcast persons (hosts, etc.) */
+  persons: Array<PodcastPerson>
+  /** Podcast GUID */
+  guid?: string
+  /** Value-for-value payment information */
+  value?: PodcastValue
+}
+
 /** Podcast person metadata */
 export interface PodcastPerson {
   /** Person's name */
@@ -349,15 +549,37 @@ export interface PodcastPerson {
   role?: string
   /** Person's group (e.g., "cast", "crew") */
   group?: string
-  /** Person's image URL */
+  /**
+   * Person's image URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
   img?: string
-  /** Person's URL/website */
+  /**
+   * Person's URL/website
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
   href?: string
+}
+
+/** Podcast soundbite */
+export interface PodcastSoundbite {
+  /** Start time in seconds */
+  startTime: number
+  /** Duration in seconds */
+  duration: number
+  /** Title */
+  title?: string
 }
 
 /** Podcast transcript metadata */
 export interface PodcastTranscript {
-  /** Transcript URL */
+  /**
+   * Transcript URL
+   *
+   * Note: URL from untrusted feed input. Validate before fetching.
+   */
   url: string
   /** Transcript type (e.g., "text/plain", "application/srt") */
   type?: string
@@ -365,6 +587,32 @@ export interface PodcastTranscript {
   language?: string
   /** Relationship type (e.g., "captions", "chapters") */
   rel?: string
+}
+
+/** Podcast 2.0 value element for monetization */
+export interface PodcastValue {
+  /** Payment type: "lightning", "hive", etc. */
+  type: string
+  /** Payment method: "keysend" for Lightning Network */
+  method: string
+  /** Suggested payment amount */
+  suggested?: string
+  /** List of payment recipients with split percentages */
+  recipients: Array<PodcastValueRecipient>
+}
+
+/** Value recipient for payment splitting */
+export interface PodcastValueRecipient {
+  /** Recipient's name */
+  name?: string
+  /** Recipient type: "node" for Lightning Network nodes */
+  type: string
+  /** Payment address (e.g., Lightning node public key) */
+  address: string
+  /** Payment split percentage */
+  split: number
+  /** Whether this is a fee recipient */
+  fee?: boolean
 }
 
 /** Source reference (for entries) */
@@ -379,7 +627,13 @@ export interface Source {
 
 /** Syndication module metadata (RSS 1.0) */
 export interface SyndicationMeta {
-  /** Update period (hourly, daily, weekly, monthly, yearly) */
+  /**
+   * Update period (hourly, daily, weekly, monthly, yearly)
+   *
+   * # Example
+   *
+   * "daily" with updateFrequency: 2 means the feed updates twice per day
+   */
   updatePeriod?: string
   /** Number of times updated per period */
   updateFrequency?: number

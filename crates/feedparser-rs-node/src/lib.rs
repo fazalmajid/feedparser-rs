@@ -6,11 +6,18 @@ use std::collections::HashMap;
 
 use feedparser_rs::{
     self as core, Content as CoreContent, Enclosure as CoreEnclosure, Entry as CoreEntry,
-    FeedMeta as CoreFeedMeta, Generator as CoreGenerator, Image as CoreImage, Link as CoreLink,
+    FeedMeta as CoreFeedMeta, Generator as CoreGenerator, Image as CoreImage,
+    ItunesCategory as CoreItunesCategory, ItunesEntryMeta as CoreItunesEntryMeta,
+    ItunesFeedMeta as CoreItunesFeedMeta, ItunesOwner as CoreItunesOwner, Link as CoreLink,
+    MediaContent as CoreMediaContent, MediaThumbnail as CoreMediaThumbnail,
     ParsedFeed as CoreParsedFeed, ParserLimits, Person as CorePerson,
-    PodcastPerson as CorePodcastPerson, PodcastTranscript as CorePodcastTranscript,
-    Source as CoreSource, SyndicationMeta as CoreSyndicationMeta, Tag as CoreTag,
-    TextConstruct as CoreTextConstruct, TextType,
+    PodcastChapters as CorePodcastChapters, PodcastEntryMeta as CorePodcastEntryMeta,
+    PodcastFunding as CorePodcastFunding, PodcastMeta as CorePodcastMeta,
+    PodcastPerson as CorePodcastPerson, PodcastSoundbite as CorePodcastSoundbite,
+    PodcastTranscript as CorePodcastTranscript, PodcastValue as CorePodcastValue,
+    PodcastValueRecipient as CorePodcastValueRecipient, Source as CoreSource,
+    SyndicationMeta as CoreSyndicationMeta, Tag as CoreTag, TextConstruct as CoreTextConstruct,
+    TextType,
 };
 
 /// Default maximum feed size (100 MB) - prevents DoS attacks
@@ -249,7 +256,11 @@ impl From<CoreParsedFeed> for ParsedFeed {
     fn from(core: CoreParsedFeed) -> Self {
         Self {
             feed: FeedMeta::from(core.feed),
-            entries: core.entries.into_iter().map(Entry::from).collect(),
+            entries: {
+                let mut v = Vec::with_capacity(core.entries.len());
+                v.extend(core.entries.into_iter().map(Entry::from));
+                v
+            },
             bozo: core.bozo,
             bozo_exception: core.bozo_exception,
             encoding: core.encoding,
@@ -269,10 +280,17 @@ impl From<CoreParsedFeed> for ParsedFeed {
 #[napi(object)]
 pub struct SyndicationMeta {
     /// Update period (hourly, daily, weekly, monthly, yearly)
+    ///
+    /// # Example
+    ///
+    /// "daily" with updateFrequency: 2 means the feed updates twice per day
+    #[napi(js_name = "updatePeriod")]
     pub update_period: Option<String>,
     /// Number of times updated per period
+    #[napi(js_name = "updateFrequency")]
     pub update_frequency: Option<u32>,
     /// Base date for update schedule (ISO 8601)
+    #[napi(js_name = "updateBase")]
     pub update_base: Option<String>,
 }
 
@@ -344,11 +362,20 @@ pub struct FeedMeta {
     /// Syndication module metadata (RSS 1.0)
     pub syndication: Option<SyndicationMeta>,
     /// Dublin Core creator (author fallback)
+    #[napi(js_name = "dcCreator")]
     pub dc_creator: Option<String>,
     /// Dublin Core publisher
+    #[napi(js_name = "dcPublisher")]
     pub dc_publisher: Option<String>,
     /// Dublin Core rights (copyright)
+    #[napi(js_name = "dcRights")]
     pub dc_rights: Option<String>,
+    /// Geographic location (GeoRSS)
+    pub geo: Option<GeoLocation>,
+    /// iTunes podcast metadata
+    pub itunes: Option<ItunesFeedMeta>,
+    /// Podcast 2.0 metadata
+    pub podcast: Option<PodcastMeta>,
 }
 
 impl From<CoreFeedMeta> for FeedMeta {
@@ -384,6 +411,9 @@ impl From<CoreFeedMeta> for FeedMeta {
             dc_creator: core.dc_creator,
             dc_publisher: core.dc_publisher,
             dc_rights: core.dc_rights,
+            geo: core.geo.map(GeoLocation::from),
+            itunes: core.itunes.map(ItunesFeedMeta::from),
+            podcast: core.podcast.map(PodcastMeta::from),
         }
     }
 }
@@ -441,6 +471,30 @@ pub struct Entry {
     pub podcast_persons: Vec<PodcastPerson>,
     /// License URL (Creative Commons, etc.)
     pub license: Option<String>,
+    /// Geographic location (GeoRSS)
+    pub geo: Option<GeoLocation>,
+    /// Dublin Core creator (author)
+    #[napi(js_name = "dcCreator")]
+    pub dc_creator: Option<String>,
+    /// Dublin Core date (milliseconds since epoch)
+    #[napi(js_name = "dcDate")]
+    pub dc_date: Option<i64>,
+    /// Dublin Core subject tags
+    #[napi(js_name = "dcSubject")]
+    pub dc_subject: Vec<String>,
+    /// Dublin Core rights (copyright)
+    #[napi(js_name = "dcRights")]
+    pub dc_rights: Option<String>,
+    /// Media RSS thumbnails
+    #[napi(js_name = "mediaThumbnails")]
+    pub media_thumbnails: Vec<MediaThumbnail>,
+    /// Media RSS content
+    #[napi(js_name = "mediaContent")]
+    pub media_content: Vec<MediaContent>,
+    /// iTunes episode metadata
+    pub itunes: Option<ItunesEntryMeta>,
+    /// Podcast 2.0 episode metadata
+    pub podcast: Option<PodcastEntryMeta>,
 }
 
 impl From<CoreEntry> for Entry {
@@ -479,6 +533,23 @@ impl From<CoreEntry> for Entry {
                 .map(PodcastPerson::from)
                 .collect(),
             license: core.license,
+            geo: core.geo.map(GeoLocation::from),
+            dc_creator: core.dc_creator,
+            dc_date: core.dc_date.map(|dt| dt.timestamp_millis()),
+            dc_subject: core.dc_subject,
+            dc_rights: core.dc_rights,
+            media_thumbnails: core
+                .media_thumbnails
+                .into_iter()
+                .map(MediaThumbnail::from)
+                .collect(),
+            media_content: core
+                .media_content
+                .into_iter()
+                .map(MediaContent::from)
+                .collect(),
+            itunes: core.itunes.map(ItunesEntryMeta::from),
+            podcast: core.podcast.map(PodcastEntryMeta::from),
         }
     }
 }
@@ -704,10 +775,416 @@ impl From<CoreSource> for Source {
     }
 }
 
+/// Geographic location from GeoRSS namespace
+#[napi(object)]
+pub struct GeoLocation {
+    /// Type of geographic shape ("point", "line", "polygon", "box")
+    #[napi(js_name = "geoType")]
+    pub geo_type: String,
+    /// Coordinate pairs as nested array [[lat, lng], ...]
+    ///
+    /// Format depends on geo_type:
+    /// - "point": Single pair [[lat, lng]]
+    /// - "line": Two or more pairs [[lat1, lng1], [lat2, lng2], ...]
+    /// - "box": Two pairs [[lower-left-lat, lower-left-lng], [upper-right-lat, upper-right-lng]]
+    /// - "polygon": Three or more pairs forming a closed shape [[lat1, lng1], ..., [lat1, lng1]]
+    pub coordinates: Vec<Vec<f64>>,
+    /// Coordinate Reference System (e.g., "EPSG:4326" for WGS84 latitude/longitude)
+    pub crs: Option<String>,
+}
+
+impl From<feedparser_rs::namespace::georss::GeoLocation> for GeoLocation {
+    fn from(core: feedparser_rs::namespace::georss::GeoLocation) -> Self {
+        use feedparser_rs::namespace::georss::GeoType;
+
+        Self {
+            geo_type: match core.geo_type {
+                GeoType::Point => "point".to_string(),
+                GeoType::Line => "line".to_string(),
+                GeoType::Polygon => "polygon".to_string(),
+                GeoType::Box => "box".to_string(),
+            },
+            coordinates: core
+                .coordinates
+                .into_iter()
+                .map(|(lat, lng)| vec![lat, lng])
+                .collect(),
+            crs: core.srs_name,
+        }
+    }
+}
+
+/// Media RSS thumbnail
+#[napi(object)]
+pub struct MediaThumbnail {
+    /// Thumbnail URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub url: String,
+    /// Width in pixels
+    pub width: Option<u32>,
+    /// Height in pixels
+    pub height: Option<u32>,
+}
+
+impl From<CoreMediaThumbnail> for MediaThumbnail {
+    fn from(core: CoreMediaThumbnail) -> Self {
+        Self {
+            url: core.url,
+            width: core.width,
+            height: core.height,
+        }
+    }
+}
+
+/// Media RSS content
+#[napi(object)]
+pub struct MediaContent {
+    /// Media URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub url: String,
+    /// MIME type
+    #[napi(js_name = "type")]
+    pub content_type: Option<String>,
+    /// File size in bytes (converted from u64 with i64::MAX cap)
+    pub filesize: Option<i64>,
+    /// Width in pixels
+    pub width: Option<u32>,
+    /// Height in pixels
+    pub height: Option<u32>,
+    /// Duration in seconds (converted from u64 with i64::MAX cap)
+    pub duration: Option<i64>,
+}
+
+impl From<CoreMediaContent> for MediaContent {
+    fn from(core: CoreMediaContent) -> Self {
+        Self {
+            url: core.url,
+            content_type: core.content_type,
+            filesize: core.filesize.map(|f| i64::try_from(f).unwrap_or(i64::MAX)),
+            width: core.width,
+            height: core.height,
+            duration: core.duration.map(|d| i64::try_from(d).unwrap_or(i64::MAX)),
+        }
+    }
+}
+
+/// iTunes podcast feed metadata
+#[napi(object)]
+pub struct ItunesFeedMeta {
+    /// Podcast author
+    pub author: Option<String>,
+    /// Podcast owner information
+    pub owner: Option<ItunesOwner>,
+    /// Podcast categories
+    pub categories: Vec<ItunesCategory>,
+    /// Explicit content flag
+    pub explicit: Option<bool>,
+    /// Podcast artwork URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub image: Option<String>,
+    /// Podcast keywords
+    pub keywords: Vec<String>,
+    /// Podcast type (episodic/serial)
+    #[napi(js_name = "podcastType")]
+    pub podcast_type: Option<String>,
+    /// Podcast completion status
+    pub complete: Option<bool>,
+    /// New feed URL for migrated podcasts
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    #[napi(js_name = "newFeedUrl")]
+    pub new_feed_url: Option<String>,
+}
+
+impl From<CoreItunesFeedMeta> for ItunesFeedMeta {
+    fn from(core: CoreItunesFeedMeta) -> Self {
+        Self {
+            author: core.author,
+            owner: core.owner.map(ItunesOwner::from),
+            categories: core
+                .categories
+                .into_iter()
+                .map(ItunesCategory::from)
+                .collect(),
+            explicit: core.explicit,
+            image: core.image,
+            keywords: core.keywords,
+            podcast_type: core.podcast_type,
+            complete: core.complete,
+            new_feed_url: core.new_feed_url,
+        }
+    }
+}
+
+/// iTunes owner information
+#[napi(object)]
+pub struct ItunesOwner {
+    /// Owner name
+    pub name: Option<String>,
+    /// Owner email
+    pub email: Option<String>,
+}
+
+impl From<CoreItunesOwner> for ItunesOwner {
+    fn from(core: CoreItunesOwner) -> Self {
+        Self {
+            name: core.name,
+            email: core.email,
+        }
+    }
+}
+
+/// iTunes category
+#[napi(object)]
+pub struct ItunesCategory {
+    /// Category text
+    pub text: String,
+    /// Subcategory
+    pub subcategory: Option<String>,
+}
+
+impl From<CoreItunesCategory> for ItunesCategory {
+    fn from(core: CoreItunesCategory) -> Self {
+        Self {
+            text: core.text,
+            subcategory: core.subcategory,
+        }
+    }
+}
+
+/// iTunes episode metadata
+#[napi(object)]
+pub struct ItunesEntryMeta {
+    /// Episode title override
+    pub title: Option<String>,
+    /// Episode author
+    pub author: Option<String>,
+    /// Episode duration in seconds
+    ///
+    /// Parsed from various formats: "3600", "60:00", "1:00:00"
+    pub duration: Option<u32>,
+    /// Explicit content flag for this episode
+    pub explicit: Option<bool>,
+    /// Episode-specific artwork URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub image: Option<String>,
+    /// Episode number
+    pub episode: Option<u32>,
+    /// Season number
+    pub season: Option<u32>,
+    /// Episode type: "full", "trailer", or "bonus"
+    #[napi(js_name = "episodeType")]
+    pub episode_type: Option<String>,
+}
+
+impl From<CoreItunesEntryMeta> for ItunesEntryMeta {
+    fn from(core: CoreItunesEntryMeta) -> Self {
+        Self {
+            title: core.title,
+            author: core.author,
+            duration: core.duration,
+            explicit: core.explicit,
+            image: core.image,
+            episode: core.episode,
+            season: core.season,
+            episode_type: core.episode_type,
+        }
+    }
+}
+
+/// Podcast 2.0 namespace metadata (feed level)
+#[napi(object)]
+pub struct PodcastMeta {
+    /// Podcast transcripts
+    pub transcripts: Vec<PodcastTranscript>,
+    /// Podcast funding links
+    pub funding: Vec<PodcastFunding>,
+    /// Podcast persons (hosts, etc.)
+    pub persons: Vec<PodcastPerson>,
+    /// Podcast GUID
+    pub guid: Option<String>,
+    /// Value-for-value payment information
+    pub value: Option<PodcastValue>,
+}
+
+impl From<CorePodcastMeta> for PodcastMeta {
+    fn from(core: CorePodcastMeta) -> Self {
+        Self {
+            transcripts: core
+                .transcripts
+                .into_iter()
+                .map(PodcastTranscript::from)
+                .collect(),
+            funding: core.funding.into_iter().map(PodcastFunding::from).collect(),
+            persons: core.persons.into_iter().map(PodcastPerson::from).collect(),
+            guid: core.guid,
+            value: core.value.map(PodcastValue::from),
+        }
+    }
+}
+
+/// Podcast 2.0 value element for monetization
+#[napi(object)]
+pub struct PodcastValue {
+    /// Payment type: "lightning", "hive", etc.
+    #[napi(js_name = "type")]
+    pub value_type: String,
+    /// Payment method: "keysend" for Lightning Network
+    pub method: String,
+    /// Suggested payment amount
+    pub suggested: Option<String>,
+    /// List of payment recipients with split percentages
+    pub recipients: Vec<PodcastValueRecipient>,
+}
+
+impl From<CorePodcastValue> for PodcastValue {
+    fn from(core: CorePodcastValue) -> Self {
+        Self {
+            value_type: core.type_,
+            method: core.method,
+            suggested: core.suggested,
+            recipients: core
+                .recipients
+                .into_iter()
+                .map(PodcastValueRecipient::from)
+                .collect(),
+        }
+    }
+}
+
+/// Value recipient for payment splitting
+#[napi(object)]
+pub struct PodcastValueRecipient {
+    /// Recipient's name
+    pub name: Option<String>,
+    /// Recipient type: "node" for Lightning Network nodes
+    #[napi(js_name = "type")]
+    pub recipient_type: String,
+    /// Payment address (e.g., Lightning node public key)
+    pub address: String,
+    /// Payment split percentage
+    pub split: u32,
+    /// Whether this is a fee recipient
+    pub fee: Option<bool>,
+}
+
+impl From<CorePodcastValueRecipient> for PodcastValueRecipient {
+    fn from(core: CorePodcastValueRecipient) -> Self {
+        Self {
+            name: core.name,
+            recipient_type: core.type_,
+            address: core.address,
+            split: core.split,
+            fee: core.fee,
+        }
+    }
+}
+
+/// Podcast funding link
+#[napi(object)]
+pub struct PodcastFunding {
+    /// Funding URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub url: String,
+    /// Funding message
+    pub message: Option<String>,
+}
+
+impl From<CorePodcastFunding> for PodcastFunding {
+    fn from(core: CorePodcastFunding) -> Self {
+        Self {
+            url: core.url,
+            message: core.message,
+        }
+    }
+}
+
+/// Podcast 2.0 episode metadata
+#[napi(object)]
+pub struct PodcastEntryMeta {
+    /// Episode transcripts
+    pub transcript: Vec<PodcastTranscript>,
+    /// Episode chapters
+    pub chapters: Option<PodcastChapters>,
+    /// Episode soundbites
+    pub soundbite: Vec<PodcastSoundbite>,
+    /// Episode persons
+    pub person: Vec<PodcastPerson>,
+}
+
+impl From<CorePodcastEntryMeta> for PodcastEntryMeta {
+    fn from(core: CorePodcastEntryMeta) -> Self {
+        Self {
+            transcript: core
+                .transcript
+                .into_iter()
+                .map(PodcastTranscript::from)
+                .collect(),
+            chapters: core.chapters.map(PodcastChapters::from),
+            soundbite: core
+                .soundbite
+                .into_iter()
+                .map(PodcastSoundbite::from)
+                .collect(),
+            person: core.person.into_iter().map(PodcastPerson::from).collect(),
+        }
+    }
+}
+
+/// Podcast chapters
+#[napi(object)]
+pub struct PodcastChapters {
+    /// Chapters URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
+    pub url: String,
+    /// Chapters MIME type (e.g., "application/json+chapters", "application/xml+chapters")
+    #[napi(js_name = "type")]
+    pub chapters_type: String,
+}
+
+impl From<CorePodcastChapters> for PodcastChapters {
+    fn from(core: CorePodcastChapters) -> Self {
+        Self {
+            url: core.url,
+            chapters_type: core.type_,
+        }
+    }
+}
+
+/// Podcast soundbite
+#[napi(object)]
+pub struct PodcastSoundbite {
+    /// Start time in seconds
+    #[napi(js_name = "startTime")]
+    pub start_time: f64,
+    /// Duration in seconds
+    pub duration: f64,
+    /// Title
+    pub title: Option<String>,
+}
+
+impl From<CorePodcastSoundbite> for PodcastSoundbite {
+    fn from(core: CorePodcastSoundbite) -> Self {
+        Self {
+            start_time: core.start_time,
+            duration: core.duration,
+            title: core.title,
+        }
+    }
+}
+
 /// Podcast transcript metadata
 #[napi(object)]
 pub struct PodcastTranscript {
     /// Transcript URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
     pub url: String,
     /// Transcript type (e.g., "text/plain", "application/srt")
     #[napi(js_name = "type")]
@@ -739,8 +1216,12 @@ pub struct PodcastPerson {
     /// Person's group (e.g., "cast", "crew")
     pub group: Option<String>,
     /// Person's image URL
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
     pub img: Option<String>,
     /// Person's URL/website
+    ///
+    /// Note: URL from untrusted feed input. Validate before fetching.
     pub href: Option<String>,
 }
 
