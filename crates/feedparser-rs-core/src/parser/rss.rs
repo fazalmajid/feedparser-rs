@@ -3,12 +3,12 @@
 use crate::{
     ParserLimits,
     error::{FeedError, Result},
-    namespace::{content, dublin_core, media_rss},
+    namespace::{content, dublin_core, georss, media_rss},
     types::{
         Enclosure, Entry, FeedVersion, Image, ItunesCategory, ItunesEntryMeta, ItunesFeedMeta,
-        ItunesOwner, Link, MediaContent, MediaThumbnail, ParsedFeed, PodcastFunding, PodcastMeta,
-        PodcastPerson, PodcastTranscript, Source, Tag, TextConstruct, TextType, parse_duration,
-        parse_explicit,
+        ItunesOwner, Link, MediaContent, MediaThumbnail, ParsedFeed, PodcastChapters,
+        PodcastEntryMeta, PodcastFunding, PodcastMeta, PodcastPerson, PodcastSoundbite,
+        PodcastTranscript, Source, Tag, TextConstruct, TextType, parse_duration, parse_explicit,
     },
     util::{base_url::BaseUrlContext, parse_date, text::truncate_to_length},
 };
@@ -16,7 +16,7 @@ use quick_xml::{Reader, events::Event};
 
 use super::common::{
     EVENT_BUFFER_CAPACITY, LimitedCollectionExt, check_depth, extract_xml_lang, init_feed,
-    is_content_tag, is_dc_tag, is_itunes_tag, is_media_tag, read_text, skip_element,
+    is_content_tag, is_dc_tag, is_georss_tag, is_itunes_tag, is_media_tag, read_text, skip_element,
 };
 
 /// Error message for malformed XML attributes (shared constant)
@@ -405,6 +405,18 @@ fn parse_channel_itunes(
         let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
         itunes.podcast_type = Some(text);
         Ok(true)
+    } else if is_itunes_tag(tag, b"complete") {
+        let text = read_text(reader, buf, limits)?;
+        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        itunes.complete = Some(text.trim().eq_ignore_ascii_case("Yes"));
+        Ok(true)
+    } else if is_itunes_tag(tag, b"new-feed-url") {
+        let text = read_text(reader, buf, limits)?;
+        if !text.is_empty() {
+            let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+            itunes.new_feed_url = Some(text.trim().to_string());
+        }
+        Ok(true)
     } else {
         Ok(false)
     }
@@ -505,14 +517,19 @@ fn parse_channel_podcast(
             Some(message_text)
         };
         let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
-        podcast.funding.push(PodcastFunding { url, message });
+        podcast
+            .funding
+            .try_push_limited(PodcastFunding { url, message }, limits.max_podcast_funding);
+        Ok(true)
+    } else if tag.starts_with(b"podcast:value") {
+        parse_podcast_value(reader, buf, attrs, feed, limits)?;
         Ok(true)
     } else {
         Ok(false)
     }
 }
 
-/// Parse Dublin Core, Content, and Media RSS namespace tags at channel level
+/// Parse Dublin Core, Content, `GeoRSS`, and Media RSS namespace tags at channel level
 #[inline]
 fn parse_channel_namespace(
     reader: &mut Reader<&[u8]>,
@@ -532,6 +549,10 @@ fn parse_channel_namespace(
         Ok(true)
     } else if let Some(_media_element) = is_media_tag(tag) {
         skip_element(reader, buf, limits, depth)?;
+        Ok(true)
+    } else if let Some(georss_element) = is_georss_tag(tag) {
+        let text = read_text(reader, buf, limits)?;
+        georss::handle_feed_element(georss_element.as_bytes(), &text, &mut feed.feed, limits);
         Ok(true)
     } else if tag.starts_with(b"creativeCommons:license") || tag == b"license" {
         feed.feed.license = Some(read_text(reader, buf, limits)?);
@@ -787,6 +808,12 @@ fn parse_item_podcast(
     } else if tag.starts_with(b"podcast:person") {
         parse_podcast_person(reader, buf, attrs, entry, limits)?;
         Ok(true)
+    } else if tag.starts_with(b"podcast:chapters") {
+        parse_podcast_chapters(reader, buf, attrs, entry, limits, is_empty, depth)?;
+        Ok(true)
+    } else if tag.starts_with(b"podcast:soundbite") {
+        parse_podcast_soundbite(reader, buf, attrs, entry, limits, is_empty, depth)?;
+        Ok(true)
     } else {
         Ok(false)
     }
@@ -816,12 +843,15 @@ fn parse_podcast_transcript(
         find_attribute(attrs, b"rel").map(|v| truncate_to_length(v, limits.max_attribute_length));
 
     if !url.is_empty() {
-        entry.podcast_transcripts.push(PodcastTranscript {
-            url,
-            transcript_type,
-            language,
-            rel,
-        });
+        entry.podcast_transcripts.try_push_limited(
+            PodcastTranscript {
+                url,
+                transcript_type,
+                language,
+                rel,
+            },
+            limits.max_podcast_transcripts,
+        );
     }
 
     if !is_empty {
@@ -850,13 +880,82 @@ fn parse_podcast_person(
 
     let name = read_text(reader, buf, limits)?;
     if !name.is_empty() {
-        entry.podcast_persons.push(PodcastPerson {
-            name,
-            role,
-            group,
-            img,
-            href,
-        });
+        entry.podcast_persons.try_push_limited(
+            PodcastPerson {
+                name,
+                role,
+                group,
+                img,
+                href,
+            },
+            limits.max_podcast_persons,
+        );
+    }
+
+    Ok(())
+}
+
+/// Parse Podcast 2.0 chapters element
+fn parse_podcast_chapters(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<()> {
+    let url = find_attribute(attrs, b"url")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
+    let type_ = find_attribute(attrs, b"type")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
+
+    if !url.is_empty() {
+        let podcast = entry.podcast.get_or_insert_with(PodcastEntryMeta::default);
+        podcast.chapters = Some(PodcastChapters { url, type_ });
+    }
+
+    if !is_empty {
+        skip_element(reader, buf, limits, depth)?;
+    }
+
+    Ok(())
+}
+
+/// Parse Podcast 2.0 soundbite element
+fn parse_podcast_soundbite(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    entry: &mut Entry,
+    limits: &ParserLimits,
+    is_empty: bool,
+    depth: usize,
+) -> Result<()> {
+    let start_time = find_attribute(attrs, b"startTime").and_then(|v| v.parse::<f64>().ok());
+    let duration = find_attribute(attrs, b"duration").and_then(|v| v.parse::<f64>().ok());
+
+    if let (Some(start_time), Some(duration)) = (start_time, duration) {
+        let title = if is_empty {
+            None
+        } else {
+            let text = read_text(reader, buf, limits)?;
+            if text.is_empty() { None } else { Some(text) }
+        };
+
+        let podcast = entry.podcast.get_or_insert_with(PodcastEntryMeta::default);
+        podcast.soundbite.try_push_limited(
+            PodcastSoundbite {
+                start_time,
+                duration,
+                title,
+            },
+            limits.max_podcast_soundbites,
+        );
+    } else if !is_empty {
+        skip_element(reader, buf, limits, depth)?;
     }
 
     Ok(())
@@ -889,6 +988,10 @@ fn parse_item_namespace(
         let content_elem = content_element.to_string();
         let text = read_text(reader, buf, limits)?;
         content::handle_entry_element(&content_elem, &text, entry);
+        Ok(true)
+    } else if let Some(georss_element) = is_georss_tag(tag) {
+        let text = read_text(reader, buf, limits)?;
+        georss::handle_entry_element(georss_element.as_bytes(), &text, entry, limits);
         Ok(true)
     } else if let Some(media_element) = is_media_tag(tag) {
         parse_item_media(
@@ -1105,6 +1208,89 @@ fn parse_itunes_owner(
     }
 
     Ok(owner)
+}
+
+/// Parse Podcast 2.0 value element from <podcast:value> element
+///
+/// Parses value-for-value payment information including payment type, method,
+/// suggested amount, and nested valueRecipient elements.
+fn parse_podcast_value(
+    reader: &mut Reader<&[u8]>,
+    buf: &mut Vec<u8>,
+    attrs: &[(Vec<u8>, String)],
+    feed: &mut ParsedFeed,
+    limits: &ParserLimits,
+) -> Result<()> {
+    use crate::types::{PodcastValue, PodcastValueRecipient};
+
+    let type_ = find_attribute(attrs, b"type")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
+    let method = find_attribute(attrs, b"method")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+        .unwrap_or_default();
+    let suggested = find_attribute(attrs, b"suggested")
+        .map(|v| truncate_to_length(v, limits.max_attribute_length));
+
+    let mut recipients = Vec::new();
+
+    loop {
+        match reader.read_event_into(buf) {
+            Ok(Event::Start(e) | Event::Empty(e)) => {
+                let tag_name = e.name();
+                if tag_name.as_ref().starts_with(b"podcast:valueRecipient") {
+                    let (recipient_attrs, _) = collect_attributes(&e);
+
+                    let name = find_attribute(&recipient_attrs, b"name")
+                        .map(|v| truncate_to_length(v, limits.max_attribute_length));
+                    let recipient_type = find_attribute(&recipient_attrs, b"type")
+                        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+                        .unwrap_or_default();
+                    let address = find_attribute(&recipient_attrs, b"address")
+                        .map(|v| truncate_to_length(v, limits.max_attribute_length))
+                        .unwrap_or_default();
+                    let split = find_attribute(&recipient_attrs, b"split")
+                        .and_then(|v| v.parse::<u32>().ok())
+                        .unwrap_or(0);
+                    let fee = find_attribute(&recipient_attrs, b"fee").and_then(|v| {
+                        if v.eq_ignore_ascii_case("true") {
+                            Some(true)
+                        } else if v.eq_ignore_ascii_case("false") {
+                            Some(false)
+                        } else {
+                            None
+                        }
+                    });
+
+                    recipients.try_push_limited(
+                        PodcastValueRecipient {
+                            name,
+                            type_: recipient_type,
+                            address,
+                            split,
+                            fee,
+                        },
+                        limits.max_value_recipients,
+                    );
+                }
+            }
+            Ok(Event::End(e)) if e.name().as_ref().starts_with(b"podcast:value") => break,
+            Ok(Event::Eof) => break,
+            Err(e) => return Err(e.into()),
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+    podcast.value = Some(PodcastValue {
+        type_,
+        method,
+        suggested,
+        recipients,
+    });
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1976,5 +2162,173 @@ mod tests {
             feed.entries[0].license.as_deref(),
             Some("https://creativecommons.org/licenses/by-sa/3.0/")
         );
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_value_lightning() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:value type="lightning" method="keysend" suggested="0.00000005000">
+                    <podcast:valueRecipient
+                        name="Host"
+                        type="node"
+                        address="03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a"
+                        split="90"
+                        fee="false"/>
+                    <podcast:valueRecipient
+                        name="Producer"
+                        type="node"
+                        address="02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52"
+                        split="10"
+                        fee="false"/>
+                </podcast:value>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        assert!(!feed.bozo, "Feed should parse without errors");
+
+        let podcast = feed.feed.podcast.as_ref().unwrap();
+        let value = podcast.value.as_ref().unwrap();
+
+        assert_eq!(value.type_, "lightning");
+        assert_eq!(value.method, "keysend");
+        assert_eq!(value.suggested.as_deref(), Some("0.00000005000"));
+        assert_eq!(value.recipients.len(), 2);
+
+        assert_eq!(value.recipients[0].name.as_deref(), Some("Host"));
+        assert_eq!(value.recipients[0].type_, "node");
+        assert_eq!(
+            value.recipients[0].address,
+            "03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a"
+        );
+        assert_eq!(value.recipients[0].split, 90);
+        assert_eq!(value.recipients[0].fee, Some(false));
+
+        assert_eq!(value.recipients[1].name.as_deref(), Some("Producer"));
+        assert_eq!(value.recipients[1].type_, "node");
+        assert_eq!(
+            value.recipients[1].address,
+            "02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52"
+        );
+        assert_eq!(value.recipients[1].split, 10);
+        assert_eq!(value.recipients[1].fee, Some(false));
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_value_without_suggested() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:value type="lightning" method="keysend">
+                    <podcast:valueRecipient
+                        name="Host"
+                        type="node"
+                        address="abc123"
+                        split="100"/>
+                </podcast:value>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let value = feed.feed.podcast.as_ref().unwrap().value.as_ref().unwrap();
+
+        assert_eq!(value.type_, "lightning");
+        assert_eq!(value.method, "keysend");
+        assert!(value.suggested.is_none());
+        assert_eq!(value.recipients.len(), 1);
+        assert_eq!(value.recipients[0].split, 100);
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_value_with_fee_recipient() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:value type="lightning" method="keysend">
+                    <podcast:valueRecipient
+                        type="node"
+                        address="fee_address"
+                        split="5"
+                        fee="true"/>
+                    <podcast:valueRecipient
+                        name="Host"
+                        type="node"
+                        address="host_address"
+                        split="95"
+                        fee="false"/>
+                </podcast:value>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let value = feed.feed.podcast.as_ref().unwrap().value.as_ref().unwrap();
+
+        assert_eq!(value.recipients.len(), 2);
+        assert!(value.recipients[0].name.is_none());
+        assert_eq!(value.recipients[0].fee, Some(true));
+        assert_eq!(value.recipients[1].fee, Some(false));
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_value_respects_limits() {
+        let mut xml = String::from(
+            r#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:value type="lightning" method="keysend">"#,
+        );
+
+        for i in 0..25 {
+            use std::fmt::Write;
+            let _ = write!(
+                xml,
+                r#"<podcast:valueRecipient type="node" address="addr_{i}" split="4"/>"#
+            );
+        }
+
+        xml.push_str(
+            r"</podcast:value>
+            </channel>
+        </rss>",
+        );
+
+        let limits = ParserLimits {
+            max_value_recipients: 5,
+            ..Default::default()
+        };
+        let feed = parse_rss20_with_limits(xml.as_bytes(), limits).unwrap();
+        let value = feed.feed.podcast.as_ref().unwrap().value.as_ref().unwrap();
+
+        assert_eq!(
+            value.recipients.len(),
+            5,
+            "Should respect max_value_recipients limit"
+        );
+    }
+
+    #[test]
+    fn test_parse_rss_podcast_value_empty_recipients() {
+        let xml = br#"<?xml version="1.0"?>
+        <rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+            <channel>
+                <title>Test Podcast</title>
+                <podcast:value type="lightning" method="keysend" suggested="0.00000005000">
+                </podcast:value>
+            </channel>
+        </rss>"#;
+
+        let feed = parse_rss20(xml).unwrap();
+        let value = feed.feed.podcast.as_ref().unwrap().value.as_ref().unwrap();
+
+        assert_eq!(value.type_, "lightning");
+        assert_eq!(value.method, "keysend");
+        assert_eq!(value.suggested.as_deref(), Some("0.00000005000"));
+        assert_eq!(value.recipients.len(), 0);
     }
 }

@@ -107,6 +107,42 @@ pub struct ParserLimits {
     ///
     /// Default: 64 KB
     pub max_attribute_length: usize,
+
+    /// Maximum number of podcast soundbites per entry
+    ///
+    /// Podcast 2.0 soundbite elements for shareable clips.
+    ///
+    /// Default: 10 soundbites
+    pub max_podcast_soundbites: usize,
+
+    /// Maximum number of podcast transcripts per entry
+    ///
+    /// Podcast 2.0 transcript elements.
+    ///
+    /// Default: 20 transcripts
+    pub max_podcast_transcripts: usize,
+
+    /// Maximum number of podcast funding elements per feed
+    ///
+    /// Podcast 2.0 funding elements for donation links.
+    ///
+    /// Default: 20 funding elements
+    pub max_podcast_funding: usize,
+
+    /// Maximum number of podcast person elements per entry
+    ///
+    /// Podcast 2.0 person elements for hosts, guests, etc.
+    ///
+    /// Default: 50 persons
+    pub max_podcast_persons: usize,
+
+    /// Maximum number of podcast value recipients per feed
+    ///
+    /// Podcast 2.0 value recipients for payment splitting.
+    /// Prevents `DoS` from feeds with excessive recipient lists.
+    ///
+    /// Default: 20 recipients
+    pub max_value_recipients: usize,
 }
 
 impl Default for ParserLimits {
@@ -129,6 +165,11 @@ impl Default for ParserLimits {
             max_text_length: 10 * 1024 * 1024,      // 10 MB
             max_feed_size_bytes: 100 * 1024 * 1024, // 100 MB
             max_attribute_length: 64 * 1024,        // 64 KB
+            max_podcast_soundbites: 10,
+            max_podcast_transcripts: 20,
+            max_podcast_funding: 20,
+            max_podcast_persons: 50,
+            max_value_recipients: 20,
         }
     }
 }
@@ -163,6 +204,11 @@ impl ParserLimits {
             max_text_length: 1024 * 1024,          // 1 MB
             max_feed_size_bytes: 10 * 1024 * 1024, // 10 MB
             max_attribute_length: 8 * 1024,        // 8 KB
+            max_podcast_soundbites: 5,
+            max_podcast_transcripts: 5,
+            max_podcast_funding: 5,
+            max_podcast_persons: 10,
+            max_value_recipients: 5,
         }
     }
 
@@ -195,6 +241,11 @@ impl ParserLimits {
             max_text_length: 50 * 1024 * 1024,      // 50 MB
             max_feed_size_bytes: 500 * 1024 * 1024, // 500 MB
             max_attribute_length: 256 * 1024,       // 256 KB
+            max_podcast_soundbites: 50,
+            max_podcast_transcripts: 100,
+            max_podcast_funding: 50,
+            max_podcast_persons: 200,
+            max_value_recipients: 50,
         }
     }
 
@@ -392,5 +443,50 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("200000000"));
         assert!(msg.contains("100000000"));
+    }
+
+    #[test]
+    fn test_max_value_recipients_default() {
+        let limits = ParserLimits::default();
+        assert_eq!(limits.max_value_recipients, 20);
+    }
+
+    #[test]
+    fn test_max_value_recipients_strict() {
+        let limits = ParserLimits::strict();
+        assert_eq!(limits.max_value_recipients, 5);
+        assert!(limits.max_value_recipients < ParserLimits::default().max_value_recipients);
+    }
+
+    #[test]
+    fn test_max_value_recipients_permissive() {
+        let limits = ParserLimits::permissive();
+        assert_eq!(limits.max_value_recipients, 50);
+        assert!(limits.max_value_recipients > ParserLimits::default().max_value_recipients);
+    }
+
+    #[test]
+    fn test_value_recipients_limit_enforcement() {
+        let limits = ParserLimits::default();
+
+        // Within limit
+        assert!(
+            limits
+                .check_collection_size(19, limits.max_value_recipients, "value_recipients")
+                .is_ok()
+        );
+
+        // At limit
+        assert!(
+            limits
+                .check_collection_size(20, limits.max_value_recipients, "value_recipients")
+                .is_err()
+        );
+
+        // Exceeds limit
+        let result =
+            limits.check_collection_size(21, limits.max_value_recipients, "value_recipients");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(LimitError::CollectionTooLarge { .. })));
     }
 }

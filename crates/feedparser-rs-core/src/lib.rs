@@ -38,7 +38,8 @@
 //! for representing parsed feed data. The main entry point is the [`parse`] function which
 //! automatically detects feed format and returns parsed results.
 
-mod compat;
+/// Compatibility utilities for Python feedparser API
+pub mod compat;
 mod error;
 #[cfg(feature = "http")]
 /// HTTP client module for fetching feeds from URLs
@@ -68,8 +69,9 @@ pub use parser::{detect_format, parse, parse_with_limits};
 pub use types::{
     Content, Enclosure, Entry, FeedMeta, FeedVersion, Generator, Image, ItunesCategory,
     ItunesEntryMeta, ItunesFeedMeta, ItunesOwner, LimitedCollectionExt, Link, ParsedFeed, Person,
-    PodcastFunding, PodcastMeta, PodcastPerson, PodcastTranscript, Source, Tag, TextConstruct,
-    TextType, parse_duration, parse_explicit,
+    PodcastChapters, PodcastEntryMeta, PodcastFunding, PodcastMeta, PodcastPerson,
+    PodcastSoundbite, PodcastTranscript, PodcastValue, PodcastValueRecipient, Source, Tag,
+    TextConstruct, TextType, parse_duration, parse_explicit,
 };
 
 pub use namespace::syndication::{SyndicationMeta, UpdatePeriod};

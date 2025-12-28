@@ -31,6 +31,20 @@ pub struct ItunesFeedMeta {
     pub keywords: Vec<String>,
     /// Podcast type: "episodic" or "serial"
     pub podcast_type: Option<String>,
+    /// Podcast completion status (itunes:complete)
+    ///
+    /// Set to true if podcast is complete and no new episodes will be published.
+    /// Value is "Yes" in the feed for true.
+    pub complete: Option<bool>,
+    /// New feed URL for migrated podcasts (itunes:new-feed-url)
+    ///
+    /// Indicates the podcast has moved to a new feed location.
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
+    pub new_feed_url: Option<String>,
 }
 
 /// iTunes podcast metadata for episodes
@@ -144,6 +158,107 @@ pub struct PodcastMeta {
     pub persons: Vec<PodcastPerson>,
     /// Permanent podcast GUID (podcast:guid)
     pub guid: Option<String>,
+    /// Value-for-value payment information (podcast:value)
+    pub value: Option<PodcastValue>,
+}
+
+/// Podcast 2.0 value element for monetization
+///
+/// Implements value-for-value payment model using cryptocurrency and streaming payments.
+/// Used for podcast monetization via Lightning Network, Hive, and other payment methods.
+///
+/// Namespace: `https://podcastindex.org/namespace/1.0`
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::{PodcastValue, PodcastValueRecipient};
+///
+/// let value = PodcastValue {
+///     type_: "lightning".to_string(),
+///     method: "keysend".to_string(),
+///     suggested: Some("0.00000005000".to_string()),
+///     recipients: vec![
+///         PodcastValueRecipient {
+///             name: Some("Host".to_string()),
+///             type_: "node".to_string(),
+///             address: "03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a".to_string(),
+///             split: 90,
+///             fee: Some(false),
+///         },
+///         PodcastValueRecipient {
+///             name: Some("Producer".to_string()),
+///             type_: "node".to_string(),
+///             address: "02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52".to_string(),
+///             split: 10,
+///             fee: Some(false),
+///         },
+///     ],
+/// };
+///
+/// assert_eq!(value.type_, "lightning");
+/// assert_eq!(value.recipients.len(), 2);
+/// ```
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PodcastValue {
+    /// Payment type (type attribute): "lightning", "hive", etc.
+    pub type_: String,
+    /// Payment method (method attribute): "keysend" for Lightning Network
+    pub method: String,
+    /// Suggested payment amount (suggested attribute)
+    ///
+    /// Format depends on payment type. For Lightning, this is typically satoshis.
+    pub suggested: Option<String>,
+    /// List of payment recipients with split percentages
+    pub recipients: Vec<PodcastValueRecipient>,
+}
+
+/// Value recipient for payment splitting
+///
+/// Defines a single recipient in the value-for-value payment model.
+/// Each recipient receives a percentage (split) of the total payment.
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::PodcastValueRecipient;
+///
+/// let recipient = PodcastValueRecipient {
+///     name: Some("Podcast Host".to_string()),
+///     type_: "node".to_string(),
+///     address: "03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a".to_string(),
+///     split: 95,
+///     fee: Some(false),
+/// };
+///
+/// assert_eq!(recipient.split, 95);
+/// assert_eq!(recipient.fee, Some(false));
+/// ```
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PodcastValueRecipient {
+    /// Recipient's name (name attribute)
+    pub name: Option<String>,
+    /// Recipient type (type attribute): "node" for Lightning Network nodes
+    pub type_: String,
+    /// Payment address (address attribute)
+    ///
+    /// For Lightning: node public key (hex-encoded)
+    /// For other types: appropriate address format
+    ///
+    /// # Security Warning
+    ///
+    /// This address comes from untrusted feed input. Applications MUST validate
+    /// addresses before sending payments to prevent sending funds to wrong recipients.
+    pub address: String,
+    /// Payment split percentage (split attribute)
+    ///
+    /// Can be absolute percentage (1-100) or relative value that's normalized.
+    /// Total of all splits should equal 100 for percentage-based splits.
+    pub split: u32,
+    /// Whether this is a fee recipient (fee attribute)
+    ///
+    /// Fee recipients are paid before regular splits are calculated.
+    pub fee: Option<bool>,
 }
 
 /// Podcast 2.0 transcript
@@ -164,9 +279,14 @@ pub struct PodcastMeta {
 ///
 /// assert_eq!(transcript.url, "https://example.com/transcript.txt");
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodcastTranscript {
     /// Transcript URL (url attribute)
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
     pub url: String,
     /// MIME type (type attribute): "text/plain", "text/html", "application/json", etc.
     pub transcript_type: Option<String>,
@@ -195,6 +315,11 @@ pub struct PodcastTranscript {
 #[derive(Debug, Clone)]
 pub struct PodcastFunding {
     /// Funding URL (url attribute)
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
     pub url: String,
     /// Optional message/call-to-action (text content)
     pub message: Option<String>,
@@ -220,7 +345,7 @@ pub struct PodcastFunding {
 /// assert_eq!(host.name, "John Doe");
 /// assert_eq!(host.role.as_deref(), Some("host"));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodcastPerson {
     /// Person's name (text content)
     pub name: String,
@@ -229,9 +354,105 @@ pub struct PodcastPerson {
     /// Group name (group attribute)
     pub group: Option<String>,
     /// Image URL (img attribute)
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
     pub img: Option<String>,
     /// Personal URL/homepage (href attribute)
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
     pub href: Option<String>,
+}
+
+/// Podcast 2.0 chapters information
+///
+/// Links to chapter markers for time-based navigation within an episode.
+/// Namespace: `https://podcastindex.org/namespace/1.0`
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::PodcastChapters;
+///
+/// let chapters = PodcastChapters {
+///     url: "https://example.com/chapters.json".to_string(),
+///     type_: "application/json+chapters".to_string(),
+/// };
+///
+/// assert_eq!(chapters.url, "https://example.com/chapters.json");
+/// ```
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PodcastChapters {
+    /// Chapters file URL (url attribute)
+    ///
+    /// # Security Warning
+    ///
+    /// This URL comes from untrusted feed input and has NOT been validated for SSRF.
+    /// Applications MUST validate URLs before fetching to prevent SSRF attacks.
+    pub url: String,
+    /// MIME type (type attribute): "application/json+chapters" or "application/xml+chapters"
+    pub type_: String,
+}
+
+/// Podcast 2.0 soundbite (shareable clip)
+///
+/// Marks a portion of the audio for social sharing or highlights.
+/// Namespace: `https://podcastindex.org/namespace/1.0`
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::PodcastSoundbite;
+///
+/// let soundbite = PodcastSoundbite {
+///     start_time: 120.5,
+///     duration: 30.0,
+///     title: Some("Great quote".to_string()),
+/// };
+///
+/// assert_eq!(soundbite.start_time, 120.5);
+/// assert_eq!(soundbite.duration, 30.0);
+/// ```
+#[derive(Debug, Clone, Default, PartialEq)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+pub struct PodcastSoundbite {
+    /// Start time in seconds (startTime attribute)
+    pub start_time: f64,
+    /// Duration in seconds (duration attribute)
+    pub duration: f64,
+    /// Optional title/description (text content)
+    pub title: Option<String>,
+}
+
+/// Podcast 2.0 metadata for episodes
+///
+/// Container for entry-level podcast metadata.
+///
+/// # Examples
+///
+/// ```
+/// use feedparser_rs::PodcastEntryMeta;
+///
+/// let mut podcast = PodcastEntryMeta::default();
+/// assert!(podcast.transcript.is_empty());
+/// assert!(podcast.chapters.is_none());
+/// assert!(podcast.soundbite.is_empty());
+/// ```
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PodcastEntryMeta {
+    /// Transcript URLs (podcast:transcript)
+    pub transcript: Vec<PodcastTranscript>,
+    /// Chapter markers (podcast:chapters)
+    pub chapters: Option<PodcastChapters>,
+    /// Shareable soundbites (podcast:soundbite)
+    pub soundbite: Vec<PodcastSoundbite>,
+    /// People associated with this episode (podcast:person)
+    pub person: Vec<PodcastPerson>,
 }
 
 /// Parse duration from various iTunes duration formats
@@ -264,21 +485,21 @@ pub fn parse_duration(s: &str) -> Option<u32> {
         return Some(secs);
     }
 
-    // Parse HH:MM:SS or MM:SS format
-    let parts: Vec<&str> = s.split(':').collect();
-    match parts.len() {
-        1 => s.parse().ok(),
-        2 => {
+    // Parse HH:MM:SS or MM:SS format using iterator pattern matching
+    let mut parts = s.split(':');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(first), None, None, None) => first.parse().ok(),
+        (Some(min), Some(sec), None, None) => {
             // MM:SS
-            let min = parts[0].parse::<u32>().ok()?;
-            let sec = parts[1].parse::<u32>().ok()?;
+            let min = min.parse::<u32>().ok()?;
+            let sec = sec.parse::<u32>().ok()?;
             Some(min * 60 + sec)
         }
-        3 => {
+        (Some(hr), Some(min), Some(sec), None) => {
             // HH:MM:SS
-            let hr = parts[0].parse::<u32>().ok()?;
-            let min = parts[1].parse::<u32>().ok()?;
-            let sec = parts[2].parse::<u32>().ok()?;
+            let hr = hr.parse::<u32>().ok()?;
+            let min = min.parse::<u32>().ok()?;
+            let sec = sec.parse::<u32>().ok()?;
             Some(hr * 3600 + min * 60 + sec)
         }
         _ => None,
@@ -315,10 +536,19 @@ pub fn parse_duration(s: &str) -> Option<u32> {
 /// assert_eq!(parse_explicit("unknown"), None);
 /// ```
 pub fn parse_explicit(s: &str) -> Option<bool> {
-    match s.trim().to_lowercase().as_str() {
-        "yes" | "true" | "explicit" => Some(true),
-        "no" | "false" | "clean" => Some(false),
-        _ => None,
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("yes")
+        || s.eq_ignore_ascii_case("true")
+        || s.eq_ignore_ascii_case("explicit")
+    {
+        Some(true)
+    } else if s.eq_ignore_ascii_case("no")
+        || s.eq_ignore_ascii_case("false")
+        || s.eq_ignore_ascii_case("clean")
+    {
+        Some(false)
+    } else {
+        None
     }
 }
 
@@ -409,6 +639,8 @@ mod tests {
         assert!(meta.image.is_none());
         assert!(meta.keywords.is_empty());
         assert!(meta.podcast_type.is_none());
+        assert!(meta.complete.is_none());
+        assert!(meta.new_feed_url.is_none());
     }
 
     #[test]
@@ -491,5 +723,235 @@ mod tests {
         let cloned = person.clone();
         assert_eq!(cloned.name, "John Doe");
         assert_eq!(cloned.role.as_deref(), Some("host"));
+    }
+
+    #[test]
+    fn test_podcast_chapters_default() {
+        let chapters = PodcastChapters::default();
+        assert!(chapters.url.is_empty());
+        assert!(chapters.type_.is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::redundant_clone)]
+    fn test_podcast_chapters_clone() {
+        let chapters = PodcastChapters {
+            url: "https://example.com/chapters.json".to_string(),
+            type_: "application/json+chapters".to_string(),
+        };
+        let cloned = chapters.clone();
+        assert_eq!(cloned.url, "https://example.com/chapters.json");
+        assert_eq!(cloned.type_, "application/json+chapters");
+    }
+
+    #[test]
+    fn test_podcast_soundbite_default() {
+        let soundbite = PodcastSoundbite::default();
+        assert!((soundbite.start_time - 0.0).abs() < f64::EPSILON);
+        assert!((soundbite.duration - 0.0).abs() < f64::EPSILON);
+        assert!(soundbite.title.is_none());
+    }
+
+    #[test]
+    #[allow(clippy::redundant_clone)]
+    fn test_podcast_soundbite_clone() {
+        let soundbite = PodcastSoundbite {
+            start_time: 120.5,
+            duration: 30.0,
+            title: Some("Great quote".to_string()),
+        };
+        let cloned = soundbite.clone();
+        assert!((cloned.start_time - 120.5).abs() < f64::EPSILON);
+        assert!((cloned.duration - 30.0).abs() < f64::EPSILON);
+        assert_eq!(cloned.title.as_deref(), Some("Great quote"));
+    }
+
+    #[test]
+    fn test_podcast_entry_meta_default() {
+        let meta = PodcastEntryMeta::default();
+        assert!(meta.transcript.is_empty());
+        assert!(meta.chapters.is_none());
+        assert!(meta.soundbite.is_empty());
+        assert!(meta.person.is_empty());
+    }
+
+    #[test]
+    fn test_itunes_feed_meta_new_fields() {
+        let meta = ItunesFeedMeta {
+            complete: Some(true),
+            new_feed_url: Some("https://example.com/new-feed.xml".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(meta.complete, Some(true));
+        assert_eq!(
+            meta.new_feed_url.as_deref(),
+            Some("https://example.com/new-feed.xml")
+        );
+    }
+
+    #[test]
+    fn test_podcast_value_default() {
+        let value = PodcastValue::default();
+        assert!(value.type_.is_empty());
+        assert!(value.method.is_empty());
+        assert!(value.suggested.is_none());
+        assert!(value.recipients.is_empty());
+    }
+
+    #[test]
+    fn test_podcast_value_lightning() {
+        let value = PodcastValue {
+            type_: "lightning".to_string(),
+            method: "keysend".to_string(),
+            suggested: Some("0.00000005000".to_string()),
+            recipients: vec![
+                PodcastValueRecipient {
+                    name: Some("Host".to_string()),
+                    type_: "node".to_string(),
+                    address: "03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a"
+                        .to_string(),
+                    split: 90,
+                    fee: Some(false),
+                },
+                PodcastValueRecipient {
+                    name: Some("Producer".to_string()),
+                    type_: "node".to_string(),
+                    address: "02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52"
+                        .to_string(),
+                    split: 10,
+                    fee: Some(false),
+                },
+            ],
+        };
+
+        assert_eq!(value.type_, "lightning");
+        assert_eq!(value.method, "keysend");
+        assert_eq!(value.suggested.as_deref(), Some("0.00000005000"));
+        assert_eq!(value.recipients.len(), 2);
+        assert_eq!(value.recipients[0].split, 90);
+        assert_eq!(value.recipients[1].split, 10);
+    }
+
+    #[test]
+    fn test_podcast_value_recipient_default() {
+        let recipient = PodcastValueRecipient::default();
+        assert!(recipient.name.is_none());
+        assert!(recipient.type_.is_empty());
+        assert!(recipient.address.is_empty());
+        assert_eq!(recipient.split, 0);
+        assert!(recipient.fee.is_none());
+    }
+
+    #[test]
+    fn test_podcast_value_recipient_with_fee() {
+        let recipient = PodcastValueRecipient {
+            name: Some("Hosting Provider".to_string()),
+            type_: "node".to_string(),
+            address: "02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52"
+                .to_string(),
+            split: 5,
+            fee: Some(true),
+        };
+
+        assert_eq!(recipient.name.as_deref(), Some("Hosting Provider"));
+        assert_eq!(recipient.split, 5);
+        assert_eq!(recipient.fee, Some(true));
+    }
+
+    #[test]
+    fn test_podcast_value_recipient_without_name() {
+        let recipient = PodcastValueRecipient {
+            name: None,
+            type_: "node".to_string(),
+            address: "03ae9f91a0cb8ff43840e3c322c4c61f019d8c1c3cea15a25cfc425ac605e61a4a"
+                .to_string(),
+            split: 100,
+            fee: Some(false),
+        };
+
+        assert!(recipient.name.is_none());
+        assert_eq!(recipient.split, 100);
+    }
+
+    #[test]
+    fn test_podcast_value_multiple_recipients() {
+        let mut value = PodcastValue {
+            type_: "lightning".to_string(),
+            method: "keysend".to_string(),
+            suggested: None,
+            recipients: Vec::new(),
+        };
+
+        // Add multiple recipients
+        for i in 1..=5 {
+            value.recipients.push(PodcastValueRecipient {
+                name: Some(format!("Recipient {i}")),
+                type_: "node".to_string(),
+                address: format!("address_{i}"),
+                split: 20,
+                fee: Some(false),
+            });
+        }
+
+        assert_eq!(value.recipients.len(), 5);
+        assert_eq!(value.recipients.iter().map(|r| r.split).sum::<u32>(), 100);
+    }
+
+    #[test]
+    fn test_podcast_value_hive() {
+        let value = PodcastValue {
+            type_: "hive".to_string(),
+            method: "direct".to_string(),
+            suggested: Some("1.00000".to_string()),
+            recipients: vec![PodcastValueRecipient {
+                name: Some("@username".to_string()),
+                type_: "account".to_string(),
+                address: "username".to_string(),
+                split: 100,
+                fee: Some(false),
+            }],
+        };
+
+        assert_eq!(value.type_, "hive");
+        assert_eq!(value.method, "direct");
+    }
+
+    #[test]
+    fn test_podcast_meta_with_value() {
+        let mut meta = PodcastMeta::default();
+        assert!(meta.value.is_none());
+
+        meta.value = Some(PodcastValue {
+            type_: "lightning".to_string(),
+            method: "keysend".to_string(),
+            suggested: Some("0.00000005000".to_string()),
+            recipients: vec![],
+        });
+
+        assert!(meta.value.is_some());
+        assert_eq!(meta.value.as_ref().unwrap().type_, "lightning");
+    }
+
+    #[test]
+    #[allow(clippy::redundant_clone)]
+    fn test_podcast_value_clone() {
+        let value = PodcastValue {
+            type_: "lightning".to_string(),
+            method: "keysend".to_string(),
+            suggested: Some("0.00000005000".to_string()),
+            recipients: vec![PodcastValueRecipient {
+                name: Some("Host".to_string()),
+                type_: "node".to_string(),
+                address: "abc123".to_string(),
+                split: 100,
+                fee: Some(false),
+            }],
+        };
+
+        let cloned = value.clone();
+        assert_eq!(cloned.type_, "lightning");
+        assert_eq!(cloned.recipients.len(), 1);
+        assert_eq!(cloned.recipients[0].name.as_deref(), Some("Host"));
     }
 }
