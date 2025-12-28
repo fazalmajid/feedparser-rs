@@ -30,20 +30,20 @@ pub struct FeedMeta {
     pub updated: Option<DateTime<Utc>>,
     /// Initial publication date (RSS pubDate, Atom published)
     pub published: Option<DateTime<Utc>>,
-    /// Primary author name
-    pub author: Option<String>,
+    /// Primary author name (stored inline for names ≤24 bytes)
+    pub author: Option<super::common::SmallString>,
     /// Detailed author information
     pub author_detail: Option<Person>,
     /// All authors
     pub authors: Vec<Person>,
     /// Contributors
     pub contributors: Vec<Person>,
-    /// Publisher name
-    pub publisher: Option<String>,
+    /// Publisher name (stored inline for names ≤24 bytes)
+    pub publisher: Option<super::common::SmallString>,
     /// Detailed publisher information
     pub publisher_detail: Option<Person>,
-    /// Feed language (e.g., "en-us")
-    pub language: Option<String>,
+    /// Feed language (e.g., "en-us") - stored inline as lang codes are ≤24 bytes
+    pub language: Option<super::common::SmallString>,
     /// Copyright/rights statement
     pub rights: Option<String>,
     /// Detailed rights with metadata
@@ -65,21 +65,21 @@ pub struct FeedMeta {
     /// Time-to-live (update frequency hint) in minutes
     pub ttl: Option<u32>,
     /// iTunes podcast metadata (if present)
-    pub itunes: Option<ItunesFeedMeta>,
+    pub itunes: Option<Box<ItunesFeedMeta>>,
     /// Podcast 2.0 namespace metadata (if present)
-    pub podcast: Option<PodcastMeta>,
-    /// Dublin Core creator (author fallback)
-    pub dc_creator: Option<String>,
-    /// Dublin Core publisher
-    pub dc_publisher: Option<String>,
+    pub podcast: Option<Box<PodcastMeta>>,
+    /// Dublin Core creator (author fallback) - stored inline for names ≤24 bytes
+    pub dc_creator: Option<super::common::SmallString>,
+    /// Dublin Core publisher (stored inline for names ≤24 bytes)
+    pub dc_publisher: Option<super::common::SmallString>,
     /// Dublin Core rights (copyright)
     pub dc_rights: Option<String>,
     /// License URL (Creative Commons, etc.)
     pub license: Option<String>,
     /// Syndication module metadata (RSS 1.0)
-    pub syndication: Option<SyndicationMeta>,
+    pub syndication: Option<Box<SyndicationMeta>>,
     /// Geographic location from `GeoRSS` namespace (feed level)
-    pub geo: Option<crate::namespace::georss::GeoLocation>,
+    pub geo: Option<Box<crate::namespace::georss::GeoLocation>>,
 }
 
 /// Parsed feed result
@@ -395,8 +395,8 @@ impl FeedMeta {
         }
         self.links.try_push_limited(
             Link {
-                href,
-                rel: Some("alternate".to_string()),
+                href: href.into(),
+                rel: Some("alternate".into()),
                 ..Default::default()
             },
             max_links,

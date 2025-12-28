@@ -13,6 +13,7 @@ repository.workspace = true
 [dependencies]
 ammonia.workspace = true
 chrono = { workspace = true, features = ["std", "clock"] }
+compact_str.workspace = true
 encoding_rs.workspace = true
 html-escape.workspace = true
 memchr.workspace = true
@@ -36,11 +37,16 @@ http = ["dep:reqwest"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
+dhat = "0.3.3"
 mockito.workspace = true
 flate2.workspace = true
 
 [[bench]]
 name = "parsing"
+harness = false
+
+[[bench]]
+name = "types"
 harness = false
 
 [lints]

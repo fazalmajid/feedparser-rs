@@ -29,25 +29,28 @@ const MALFORMED_ATTRIBUTES_ERROR: &str = "Malformed XML attributes";
 /// Note: Keys are cloned to `Vec<u8>` because `quick_xml::Attribute` owns the key
 /// data only for the lifetime of the event, but we need to store attributes across
 /// multiple parsing calls in `parse_enclosure` and other functions.
+///
+/// Pre-allocates space for 4 attributes (typical for enclosures: url, type, length, maybe one more)
 #[inline]
 fn collect_attributes(e: &quick_xml::events::BytesStart) -> (Vec<(Vec<u8>, String)>, bool) {
     let mut has_errors = false;
-    let attrs = e
-        .attributes()
-        .filter_map(|result| {
-            if let Ok(attr) = result {
+    let mut attrs = Vec::with_capacity(4);
+
+    for result in e.attributes() {
+        match result {
+            Ok(attr) => {
                 if let Ok(v) = attr.unescape_value() {
-                    Some((attr.key.as_ref().to_vec(), v.to_string()))
+                    attrs.push((attr.key.as_ref().to_vec(), v.to_string()));
                 } else {
                     has_errors = true;
-                    None
                 }
-            } else {
-                has_errors = true;
-                None
             }
-        })
-        .collect();
+            Err(_) => {
+                has_errors = true;
+            }
+        }
+    }
+
     (attrs, has_errors)
 }
 
@@ -306,9 +309,9 @@ fn parse_enclosure(attrs: &[(Vec<u8>, String)], limits: &ParserLimits) -> Option
         None
     } else {
         Some(Enclosure {
-            url,
+            url: url.into(),
             length,
-            enclosure_type: enc_type,
+            enclosure_type: enc_type.map(Into::into),
         })
     }
 }
@@ -330,7 +333,7 @@ fn parse_channel_standard(
             feed.feed.set_title(TextConstruct {
                 value: text,
                 content_type: TextType::Text,
-                language: channel_lang.map(String::from),
+                language: channel_lang.map(std::convert::Into::into),
                 base: base_ctx.base().map(String::from),
             });
         }
@@ -348,12 +351,12 @@ fn parse_channel_standard(
             feed.feed.set_subtitle(TextConstruct {
                 value: text,
                 content_type: TextType::Html,
-                language: channel_lang.map(String::from),
+                language: channel_lang.map(std::convert::Into::into),
                 base: base_ctx.base().map(String::from),
             });
         }
         b"language" => {
-            feed.feed.language = Some(read_text(reader, buf, limits)?);
+            feed.feed.language = Some(read_text(reader, buf, limits)?.into());
         }
         b"pubDate" => {
             let text = read_text(reader, buf, limits)?;
@@ -367,10 +370,10 @@ fn parse_channel_standard(
             }
         }
         b"managingEditor" => {
-            feed.feed.author = Some(read_text(reader, buf, limits)?);
+            feed.feed.author = Some(read_text(reader, buf, limits)?.into());
         }
         b"webMaster" => {
-            feed.feed.publisher = Some(read_text(reader, buf, limits)?);
+            feed.feed.publisher = Some(read_text(reader, buf, limits)?.into());
         }
         b"generator" => {
             feed.feed.generator = Some(read_text(reader, buf, limits)?);
@@ -383,7 +386,7 @@ fn parse_channel_standard(
             let term = read_text(reader, buf, limits)?;
             feed.feed.tags.try_push_limited(
                 Tag {
-                    term,
+                    term: term.into(),
                     scheme: None,
                     label: None,
                 },
@@ -409,11 +412,17 @@ fn parse_channel_itunes(
 ) -> Result<bool> {
     if is_itunes_tag(tag, b"author") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         itunes.author = Some(text);
         Ok(true)
     } else if is_itunes_tag(tag, b"owner") {
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         if let Ok(owner) = parse_itunes_owner(reader, buf, limits, depth) {
             itunes.owner = Some(owner);
         }
@@ -423,18 +432,27 @@ fn parse_channel_itunes(
         Ok(true)
     } else if is_itunes_tag(tag, b"explicit") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         itunes.explicit = parse_explicit(&text);
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
         if let Some(value) = find_attribute(attrs, b"href") {
-            let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            let itunes = feed
+                .feed
+                .itunes
+                .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
+            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length).into());
         }
         Ok(true)
     } else if is_itunes_tag(tag, b"keywords") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         itunes.keywords = text
             .split(',')
             .map(|s| s.trim().to_string())
@@ -443,19 +461,28 @@ fn parse_channel_itunes(
         Ok(true)
     } else if is_itunes_tag(tag, b"type") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         itunes.podcast_type = Some(text);
         Ok(true)
     } else if is_itunes_tag(tag, b"complete") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+        let itunes = feed
+            .feed
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
         itunes.complete = Some(text.trim().eq_ignore_ascii_case("Yes"));
         Ok(true)
     } else if is_itunes_tag(tag, b"new-feed-url") {
         let text = read_text(reader, buf, limits)?;
         if !text.is_empty() {
-            let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
-            itunes.new_feed_url = Some(text.trim().to_string());
+            let itunes = feed
+                .feed
+                .itunes
+                .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
+            itunes.new_feed_url = Some(text.trim().to_string().into());
         }
         Ok(true)
     } else {
@@ -523,7 +550,10 @@ fn parse_itunes_category(
         buf.clear();
     }
 
-    let itunes = feed.feed.itunes.get_or_insert_with(ItunesFeedMeta::default);
+    let itunes = feed
+        .feed
+        .itunes
+        .get_or_insert_with(|| Box::new(ItunesFeedMeta::default()));
     itunes.categories.push(ItunesCategory {
         text: category_text,
         subcategory: subcategory_text,
@@ -544,7 +574,10 @@ fn parse_channel_podcast(
 ) -> Result<bool> {
     if tag.starts_with(b"podcast:guid") {
         let text = read_text(reader, buf, limits)?;
-        let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+        let podcast = feed
+            .feed
+            .podcast
+            .get_or_insert_with(|| Box::new(PodcastMeta::default()));
         podcast.guid = Some(text);
         Ok(true)
     } else if tag.starts_with(b"podcast:funding") {
@@ -557,10 +590,17 @@ fn parse_channel_podcast(
         } else {
             Some(message_text)
         };
-        let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
-        podcast
-            .funding
-            .try_push_limited(PodcastFunding { url, message }, limits.max_podcast_funding);
+        let podcast = feed
+            .feed
+            .podcast
+            .get_or_insert_with(|| Box::new(PodcastMeta::default()));
+        podcast.funding.try_push_limited(
+            PodcastFunding {
+                url: url.into(),
+                message,
+            },
+            limits.max_podcast_funding,
+        );
         Ok(true)
     } else if tag.starts_with(b"podcast:value") {
         parse_podcast_value(reader, buf, attrs, feed, limits)?;
@@ -649,7 +689,7 @@ fn parse_item(
                     }
                     b"enclosure" => {
                         if let Some(mut enclosure) = parse_enclosure(&attrs, limits) {
-                            enclosure.url = base_ctx.resolve_safe(&enclosure.url);
+                            enclosure.url = base_ctx.resolve_safe(&enclosure.url).into();
                             entry
                                 .enclosures
                                 .try_push_limited(enclosure, limits.max_enclosures);
@@ -713,7 +753,7 @@ fn parse_item_standard(
             entry.set_title(TextConstruct {
                 value: text,
                 content_type: TextType::Text,
-                language: item_lang.map(String::from),
+                language: item_lang.map(std::convert::Into::into),
                 base: base_ctx.base().map(String::from),
             });
         }
@@ -723,8 +763,8 @@ fn parse_item_standard(
             entry.link = Some(resolved_link.clone());
             entry.links.try_push_limited(
                 Link {
-                    href: resolved_link,
-                    rel: Some("alternate".to_string()),
+                    href: resolved_link.into(),
+                    rel: Some("alternate".into()),
                     ..Default::default()
                 },
                 limits.max_links_per_entry,
@@ -735,25 +775,25 @@ fn parse_item_standard(
             entry.set_summary(TextConstruct {
                 value: text,
                 content_type: TextType::Html,
-                language: item_lang.map(String::from),
+                language: item_lang.map(std::convert::Into::into),
                 base: base_ctx.base().map(String::from),
             });
         }
         b"guid" => {
-            entry.id = Some(read_text(reader, buf, limits)?);
+            entry.id = Some(read_text(reader, buf, limits)?.into());
         }
         b"pubDate" => {
             let text = read_text(reader, buf, limits)?;
             entry.published = parse_date(&text);
         }
         b"author" => {
-            entry.author = Some(read_text(reader, buf, limits)?);
+            entry.author = Some(read_text(reader, buf, limits)?.into());
         }
         b"category" => {
             let term = read_text(reader, buf, limits)?;
             entry.tags.try_push_limited(
                 Tag {
-                    term,
+                    term: term.into(),
                     scheme: None,
                     label: None,
                 },
@@ -788,28 +828,38 @@ fn parse_item_itunes(
 ) -> Result<bool> {
     if is_itunes_tag(tag, b"title") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.title = Some(text);
         Ok(true)
     } else if is_itunes_tag(tag, b"author") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.author = Some(text);
         Ok(true)
     } else if is_itunes_tag(tag, b"duration") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.duration = parse_duration(&text);
         Ok(true)
     } else if is_itunes_tag(tag, b"explicit") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.explicit = parse_explicit(&text);
         Ok(true)
     } else if is_itunes_tag(tag, b"image") {
         if let Some(value) = find_attribute(attrs, b"href") {
-            let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
-            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length));
+            let itunes = entry
+                .itunes
+                .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
+            itunes.image = Some(truncate_to_length(value, limits.max_attribute_length).into());
         }
         if !is_empty {
             skip_element(reader, buf, limits, depth)?;
@@ -817,17 +867,23 @@ fn parse_item_itunes(
         Ok(true)
     } else if is_itunes_tag(tag, b"episode") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.episode = text.parse().ok();
         Ok(true)
     } else if is_itunes_tag(tag, b"season") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.season = text.parse().ok();
         Ok(true)
     } else if is_itunes_tag(tag, b"episodeType") {
         let text = read_text(reader, buf, limits)?;
-        let itunes = entry.itunes.get_or_insert_with(ItunesEntryMeta::default);
+        let itunes = entry
+            .itunes
+            .get_or_insert_with(|| Box::new(ItunesEntryMeta::default()));
         itunes.episode_type = Some(text);
         Ok(true)
     } else {
@@ -896,8 +952,8 @@ fn parse_podcast_transcript(
     if !url.is_empty() {
         entry.podcast_transcripts.try_push_limited(
             PodcastTranscript {
-                url,
-                transcript_type,
+                url: url.into(),
+                transcript_type: transcript_type.map(Into::into),
                 language,
                 rel,
             },
@@ -936,8 +992,8 @@ fn parse_podcast_person(
                 name,
                 role,
                 group,
-                img,
-                href,
+                img: img.map(Into::into),
+                href: href.map(Into::into),
             },
             limits.max_podcast_persons,
         );
@@ -964,8 +1020,13 @@ fn parse_podcast_chapters(
         .unwrap_or_default();
 
     if !url.is_empty() {
-        let podcast = entry.podcast.get_or_insert_with(PodcastEntryMeta::default);
-        podcast.chapters = Some(PodcastChapters { url, type_ });
+        let podcast = entry
+            .podcast
+            .get_or_insert_with(|| Box::new(PodcastEntryMeta::default()));
+        podcast.chapters = Some(PodcastChapters {
+            url: url.into(),
+            type_: type_.into(),
+        });
     }
 
     if !is_empty {
@@ -996,7 +1057,9 @@ fn parse_podcast_soundbite(
             if text.is_empty() { None } else { Some(text) }
         };
 
-        let podcast = entry.podcast.get_or_insert_with(PodcastEntryMeta::default);
+        let podcast = entry
+            .podcast
+            .get_or_insert_with(|| Box::new(PodcastEntryMeta::default()));
         podcast.soundbite.try_push_limited(
             PodcastSoundbite {
                 start_time,
@@ -1085,9 +1148,14 @@ fn parse_item_media(
             let height = find_attribute(attrs, b"height").and_then(|v| v.parse().ok());
 
             if !url.is_empty() {
-                entry
-                    .media_thumbnails
-                    .try_push_limited(MediaThumbnail { url, width, height }, limits.max_enclosures);
+                entry.media_thumbnails.try_push_limited(
+                    MediaThumbnail {
+                        url: url.into(),
+                        width,
+                        height,
+                    },
+                    limits.max_enclosures,
+                );
             }
             if !is_empty {
                 skip_element(reader, buf, limits, depth)?;
@@ -1107,8 +1175,8 @@ fn parse_item_media(
             if !url.is_empty() {
                 entry.media_content.try_push_limited(
                     MediaContent {
-                        url,
-                        content_type,
+                        url: url.into(),
+                        content_type: content_type.map(Into::into),
                         filesize,
                         width,
                         height,
@@ -1182,7 +1250,7 @@ fn parse_image(
     }
 
     Ok(Image {
-        url,
+        url: url.into(),
         title,
         link,
         width,
@@ -1283,7 +1351,7 @@ fn parse_podcast_value(
     let suggested = find_attribute(attrs, b"suggested")
         .map(|v| truncate_to_length(v, limits.max_attribute_length));
 
-    let mut recipients = Vec::new();
+    let mut recipients = Vec::with_capacity(2);
 
     loop {
         match reader.read_event_into(buf) {
@@ -1333,7 +1401,10 @@ fn parse_podcast_value(
         buf.clear();
     }
 
-    let podcast = feed.feed.podcast.get_or_insert_with(PodcastMeta::default);
+    let podcast = feed
+        .feed
+        .podcast
+        .get_or_insert_with(|| Box::new(PodcastMeta::default()));
     podcast.value = Some(PodcastValue {
         type_,
         method,

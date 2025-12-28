@@ -53,8 +53,8 @@ pub fn handle_feed_element(
             if let Some(license_url) = extract_license_url(attrs, text) {
                 feed.links.try_push_limited(
                     Link {
-                        href: license_url,
-                        rel: Some("license".to_string()),
+                        href: license_url.into(),
+                        rel: Some("license".into()),
                         ..Default::default()
                     },
                     limits.max_links_per_feed,
@@ -94,8 +94,8 @@ pub fn handle_entry_element(
             if let Some(license_url) = extract_license_url(attrs, text) {
                 entry.links.try_push_limited(
                     Link {
-                        href: license_url,
-                        rel: Some("license".to_string()),
+                        href: license_url.into(),
+                        rel: Some("license".into()),
                         ..Default::default()
                     },
                     limits.max_links_per_entry,
