@@ -8,7 +8,10 @@ use crate::{
     error::{FeedError, Result},
     types::{FeedVersion, ParsedFeed},
 };
-use quick_xml::{Reader, events::Event};
+use quick_xml::{
+    Reader,
+    events::{BytesRef, Event},
+};
 
 pub use crate::types::{FromAttributes, LimitedCollectionExt};
 pub use crate::util::text::bytes_to_string;
@@ -370,6 +373,10 @@ pub fn read_text(
             Ok(Event::CData(e)) => {
                 append_bytes(&mut text, e.as_ref(), limits.max_text_length)?;
             }
+            Ok(Event::GeneralRef(e)) => {
+                let resolved = resolve_entity(&e)?;
+                append_bytes(&mut text, resolved.as_bytes(), limits.max_text_length)?;
+            }
             Ok(Event::End(_) | Event::Eof) => break,
             Err(e) => return Err(e.into()),
             _ => {}
@@ -378,6 +385,30 @@ pub fn read_text(
     }
 
     Ok(text)
+}
+
+/// Resolve a general entity reference (character or named) to a string.
+fn resolve_entity(e: &BytesRef<'_>) -> Result<String> {
+    // Try numeric character references first: &#038; &#x26; etc.
+    if let Some(ch) = e
+        .resolve_char_ref()
+        .map_err(|err| FeedError::InvalidFormat(format!("Invalid character reference: {err}")))?
+    {
+        return Ok(ch.to_string());
+    }
+    // Predefined XML named entity references
+    match e.as_ref() {
+        b"amp" => Ok("&".to_string()),
+        b"lt" => Ok("<".to_string()),
+        b"gt" => Ok(">".to_string()),
+        b"quot" => Ok("\"".to_string()),
+        b"apos" => Ok("'".to_string()),
+        other => {
+            // Unknown entity — preserve as-is
+            let name = std::str::from_utf8(other).unwrap_or("?");
+            Ok(format!("&{name};"))
+        }
+    }
 }
 
 #[inline]
@@ -508,6 +539,94 @@ mod tests {
 
         let result = read_text(&mut reader, &mut buf, &limits);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_text_numeric_char_ref() {
+        let xml = b"<guid>https://example.com/?post_type=webcomic1&#038;p=3172</guid>";
+        let mut reader = Reader::from_reader(&xml[..]);
+        reader.config_mut().trim_text(true);
+        let mut buf = Vec::new();
+        let limits = ParserLimits::default();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(_)) => break,
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+            buf.clear();
+        }
+        buf.clear();
+
+        let text = read_text(&mut reader, &mut buf, &limits).unwrap();
+        assert_eq!(text, "https://example.com/?post_type=webcomic1&p=3172");
+    }
+
+    #[test]
+    fn test_read_text_amp_entity() {
+        let xml = b"<guid>https://example.com/?a=1&amp;b=2</guid>";
+        let mut reader = Reader::from_reader(&xml[..]);
+        reader.config_mut().trim_text(true);
+        let mut buf = Vec::new();
+        let limits = ParserLimits::default();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(_)) => break,
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+            buf.clear();
+        }
+        buf.clear();
+
+        let text = read_text(&mut reader, &mut buf, &limits).unwrap();
+        assert_eq!(text, "https://example.com/?a=1&b=2");
+    }
+
+    #[test]
+    fn test_read_text_hex_char_ref() {
+        let xml = b"<guid>https://example.com/?a=1&#x26;b=2</guid>";
+        let mut reader = Reader::from_reader(&xml[..]);
+        reader.config_mut().trim_text(true);
+        let mut buf = Vec::new();
+        let limits = ParserLimits::default();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(_)) => break,
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+            buf.clear();
+        }
+        buf.clear();
+
+        let text = read_text(&mut reader, &mut buf, &limits).unwrap();
+        assert_eq!(text, "https://example.com/?a=1&b=2");
+    }
+
+    #[test]
+    fn test_read_text_multiple_entities() {
+        let xml = b"<guid>https://example.com/?a=1&amp;b=2&amp;c=3</guid>";
+        let mut reader = Reader::from_reader(&xml[..]);
+        reader.config_mut().trim_text(true);
+        let mut buf = Vec::new();
+        let limits = ParserLimits::default();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(_)) => break,
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+            buf.clear();
+        }
+        buf.clear();
+
+        let text = read_text(&mut reader, &mut buf, &limits).unwrap();
+        assert_eq!(text, "https://example.com/?a=1&b=2&c=3");
     }
 
     #[test]
