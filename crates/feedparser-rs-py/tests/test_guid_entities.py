@@ -71,3 +71,83 @@ def test_multiple_entities_in_guid():
     d = feedparser_rs.parse(xml)
 
     assert d.entries[0].id == "https://example.com/?a=1&b=2&c=3"
+
+
+def test_guid_with_unknown_entity_preserved():
+    """Unknown entities are preserved verbatim rather than causing a parse error (bozo pattern)."""
+    xml = b"""<?xml version="1.0"?>
+    <rss version="2.0">
+        <channel>
+            <item>
+                <guid>https://example.com/?a=1&customEntity;b=2</guid>
+            </item>
+        </channel>
+    </rss>"""
+
+    d = feedparser_rs.parse(xml)
+
+    assert d.entries[0].id == "https://example.com/?a=1&customEntity;b=2"
+
+
+def test_guid_with_mixed_valid_and_unknown_entities():
+    """Mix of standard and unknown entities — parsing succeeds and both are handled."""
+    xml = b"""<?xml version="1.0"?>
+    <rss version="2.0">
+        <channel>
+            <item>
+                <guid>AT&amp;T&unknown;</guid>
+            </item>
+        </channel>
+    </rss>"""
+
+    d = feedparser_rs.parse(xml)
+
+    assert d.entries[0].id == "AT&T&unknown;"
+
+
+def test_guid_with_malformed_hex_char_ref():
+    """&#x; (hex reference with no digits) is preserved verbatim (bozo pattern)."""
+    xml = b"""<?xml version="1.0"?>
+    <rss version="2.0">
+        <channel>
+            <item>
+                <guid>pre&#x;suf</guid>
+            </item>
+        </channel>
+    </rss>"""
+
+    d = feedparser_rs.parse(xml)
+
+    assert d.entries[0].id == "pre&#x;suf"
+
+
+def test_guid_with_malformed_decimal_char_ref():
+    """&#; (decimal reference with no digits) is preserved verbatim (bozo pattern)."""
+    xml = b"""<?xml version="1.0"?>
+    <rss version="2.0">
+        <channel>
+            <item>
+                <guid>pre&#;suf</guid>
+            </item>
+        </channel>
+    </rss>"""
+
+    d = feedparser_rs.parse(xml)
+
+    assert d.entries[0].id == "pre&#;suf"
+
+
+def test_guid_with_empty_entity_name():
+    """&; (entity with empty name) is preserved verbatim (bozo pattern)."""
+    xml = b"""<?xml version="1.0"?>
+    <rss version="2.0">
+        <channel>
+            <item>
+                <guid>pre&;suf</guid>
+            </item>
+        </channel>
+    </rss>"""
+
+    d = feedparser_rs.parse(xml)
+
+    assert d.entries[0].id == "pre&;suf"
